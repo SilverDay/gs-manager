@@ -64,9 +64,14 @@ export function useApi(path, options = {}) {
       if (!res.ok || !json.success) {
         error.value = json.error || `Fehler ${res.status}`
 
-        // On 401 → redirect to login
+        // On 401 → soft-navigate to login (lazy imports avoid circular deps)
         if (res.status === 401) {
-          window.location.href = '/login'
+          const [{ router }, { useAuthStore }] = await Promise.all([
+            import('@/router.js'),
+            import('@/stores/useAuthStore.js'),
+          ])
+          useAuthStore().user = null
+          router.push('/login')
         }
 
         // On 403 CSRF → refresh token and hint to retry
