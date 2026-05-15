@@ -4,12 +4,16 @@ RewriteEngine On
 # RewriteCond %{HTTPS} off
 # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Serve existing files and directories directly
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-
-# Route everything else through front controller
+# API requests → PHP front controller
+RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^ index.php [L,QSA]
+
+# Static assets (JS, CSS, images, fonts) → serve directly
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Everything else → SPA entry point
+RewriteRule ^ assets/index.html [L]
 
 # Security headers
 <IfModule mod_headers.c>
