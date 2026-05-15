@@ -1,0 +1,87 @@
+{
+  "catalog": {
+    "uuid": "f5a78e24-1234-4abc-8def-000000000001",
+    "metadata": {
+      "title": "BSI Grundschutz++ Anwenderkatalog (Test)",
+      "last-modified": "2026-05-15T00:00:00Z",
+      "version": "1.0.0",
+      "oscal-version": "1.1.3",
+      "roles": [],
+      "parties": []
+    },
+    "groups": [
+      {
+        "id": "PERS",
+        "title": "Personal",
+        "controls": [
+          {
+            "id": "PERS.1",
+            "title": "Regelungen für den Einsatz von Fremdfirmen",
+            "props": [
+              {"name": "label", "value": "PERS.1"},
+              {"name": "sort-id", "value": "pers-01"},
+              {"name": "requirement-type", "value": "standard"}
+            ],
+            "parts": [
+              {
+                "id": "PERS.1_smt",
+                "name": "statement",
+                "prose": "Die Organisation MUSS sicherstellen, dass beim Einsatz von Fremdfirmen angemessene Regelungen getroffen werden."
+              }
+            ]
+          },
+          {
+            "id": "PERS.1.1",
+            "title": "Auswahl geeigneter Fremdfirmen",
+            "props": [
+              {"name": "label", "value": "PERS.1.1"},
+              {"name": "sort-id", "value": "pers-01-01"},
+              {"name": "requirement-type", "value": "standard"}
+            ],
+            "params": [
+              {
+                "id": "pers-1-1-p1",
+                "label": "Frist für Überprüfung",
+                "guidelines": [{"prose": "z.B. jährlich, alle 2 Jahre"}]
+              }
+            ],
+            "parts": [
+              {
+                "id": "PERS.1.1_smt",
+                "name": "statement",
+                "prose": "Die Organisation MUSS Fremdfirmen sorgfältig auswählen und deren Zuverlässigkeit, Qualifikation und Compliance-Status prüfen. Die Überprüfung SOLLTE mindestens {{ insert: param, pers-1-1-p1 }} wiederholt werden."
+              },
+              {
+                "id": "PERS.1.1_gdn",
+                "name": "guidance",
+                "prose": "Bei der Auswahl von Fremdfirmen sind Referenzen, Zertifizierungen und bisherige Erfahrungen zu berücksichtigen."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "BES",
+        "title": "Beschaffung",
+        "controls": [
+          {
+            "id": "BES.1",
+            "title": "Anforderungen an Lieferanten",
+            "props": [
+              {"name": "label", "value": "BES.1"},
+              {"name": "sort-id", "value": "bes-01"},
+              {"name": "requirement-type", "value": "basis"}
+            ],
+            "parts": [
+              {
+                "id": "BES.1_smt",
+                "name": "statement",
+                "prose": "Die Organisation MUSS Sicherheitsanforderungen an Lieferanten definieren und in Verträgen festhalten."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

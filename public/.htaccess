@@ -1,0 +1,29 @@
+RewriteEngine On
+
+# Redirect to HTTPS in production
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Serve existing files and directories directly
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Route everything else through front controller
+RewriteRule ^ index.php [L,QSA]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
+</IfModule>
+
+# Prevent access to sensitive files
+<FilesMatch "\.(env|md|json|lock|sql|sh)$">
+    Require all denied
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes

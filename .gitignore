@@ -1,0 +1,47 @@
+# Environment
+.env
+.env.local
+
+# Dependencies
+vendor/
+node_modules/
+frontend/node_modules/
+
+# Build output
+public/assets/
+frontend/dist/
+
+# Storage (runtime data)
+storage/uploads/*
+storage/exports/*
+storage/cache/*
+!storage/uploads/.gitkeep
+!storage/exports/.gitkeep
+!storage/cache/.gitkeep
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+db_data/
+
+# Logs
+*.log
+
+# Claude Code local notes
+CLAUDE.local.md
+
+# Composer
+composer.lock
+
+# Test coverage
+coverage/
+.phpunit.result.cache
