@@ -26,4 +26,5 @@ export default defineConfig({
       input: resolve(__dirname, 'index.html'),
     },
   },
+  base: '/assets/',
 })
