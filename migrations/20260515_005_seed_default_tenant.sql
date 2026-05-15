@@ -8,7 +8,7 @@ ON DUPLICATE KEY UPDATE name = name;
 -- Password hash for 'changeme!' using PASSWORD_BCRYPT cost 12
 -- Generate fresh hash: php -r "echo password_hash('changeme!', PASSWORD_BCRYPT, ['cost' => 12]);"
 INSERT INTO users (tenant_id, email, password_hash, display_name, role, is_active) VALUES
-    (1, 'admin@localhost', '$2y$12$LJ3m4yPnRvGKXqHpMbxYOuGFwMDKmvWvHjGPvWPsTaR6ZhdGNSvWe', 'Administrator', 'admin', TRUE)
+    (1, 'admin@localhost', '$2y$12$pvOeAKCnY4019IwFApAbu.ph5wFR.xrIiEo0xGPOar4CmV.BLoNAy', 'Administrator', 'admin', TRUE)
 ON DUPLICATE KEY UPDATE email = email;
 
 -- DOWN
