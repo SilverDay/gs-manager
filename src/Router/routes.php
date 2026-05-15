@@ -15,6 +15,7 @@ use GsppManager\Middleware\CsrfMiddleware;
 use GsppManager\Controller\AuthController;
 use GsppManager\Controller\CatalogController;
 use GsppManager\Controller\DashboardController;
+use GsppManager\Controller\DomainController;
 
 // Register middleware
 $router->registerMiddleware('auth', [AuthMiddleware::class, 'handle']);
@@ -37,7 +38,17 @@ $router->get('/api/catalogs/{id}/controls/{controlId}', CatalogController::class
 $router->post('/api/catalogs/{id}/check-update', CatalogController::class, 'checkUpdate', ['auth', 'csrf']);
 
 // ─── Domains (Informationsverbund) ──────────────────────────────
-// TODO: Phase 2 implementation
+$router->get('/api/domains',                                   DomainController::class, 'list',           ['auth']);
+$router->post('/api/domains',                                  DomainController::class, 'create',         ['auth', 'csrf']);
+$router->get('/api/domains/{id}',                              DomainController::class, 'show',           ['auth']);
+$router->put('/api/domains/{id}',                              DomainController::class, 'update',         ['auth', 'csrf']);
+$router->get('/api/domains/{id}/assets',                       DomainController::class, 'assets',         ['auth']);
+$router->post('/api/domains/{id}/assets',                      DomainController::class, 'createAsset',    ['auth', 'csrf']);
+$router->get('/api/domains/{id}/processes',                    DomainController::class, 'processes',      ['auth']);
+$router->post('/api/domains/{id}/processes',                   DomainController::class, 'createProcess',  ['auth', 'csrf']);
+$router->get('/api/domains/{id}/scoped-controls',              DomainController::class, 'scopedControls', ['auth']);
+$router->post('/api/domains/{id}/tailoring',                   DomainController::class, 'tailoring',      ['auth', 'csrf']);
+$router->post('/api/domains/{id}/generate-profile',            DomainController::class, 'generateProfile',['auth', 'csrf']);
 
 // ─── Implementations (SSP / Grundschutzcheck) ───────────────────
 // TODO: Phase 3 implementation
