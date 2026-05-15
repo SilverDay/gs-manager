@@ -221,7 +221,55 @@ Grundschutz++ ist die ab 01.01.2026 gültige Weiterentwicklung des BSI IT-Grunds
 - API-Key wird pro Mandant konfiguriert
 - KI-Antworten werden gecacht (DB), um Kosten zu reduzieren und offline-Nutzung zu ermöglichen
 
-### 4.7 Modul 7: Zentrales Dashboard
+### 4.7 Modul 7: Benutzerprofil & Selbstverwaltung
+
+**Zweck:** Jeder angemeldete Benutzer verwaltet seine eigenen Zugangsdaten und Präferenzen.
+
+**Funktionen:**
+
+- F7.1: **Eigenes Profil bearbeiten:** Anzeigename und E-Mail-Adresse ändern (E-Mail-Adresse erfordert Passwortbestätigung)
+- F7.2: **Passwort ändern:** Aktuelles Passwort + neues Passwort (min. 12 Zeichen) + Wiederholung — bcrypt cost 12
+- F7.3: **TOTP-Authentifizierung:** QR-Code anzeigen, TOTP-Setup bestätigen, TOTP deaktivieren (erfordert Passwort)
+- F7.4: **Aktive Sitzungen anzeigen:** IP-Adresse, User-Agent, Letzte Aktivität (read-only)
+- F7.5: **Letzte Anmeldungen:** Chronologische Liste der letzten 10 Login-Ereignisse aus dem Audit-Log
+
+### 4.8 Modul 8: Administrations-Interface
+
+**Zweck:** Mandant-Administratoren verwalten Benutzer, Rollen und Systemeinstellungen innerhalb ihres Mandanten.
+
+**Funktionen:**
+
+- F8.1: **Benutzerliste:** Alle Benutzer des Mandanten mit Rolle, Status (aktiv/inaktiv), letzter Anmeldung
+- F8.2: **Benutzer anlegen:** E-Mail, Anzeigename, Rolle, temporäres Passwort (oder Einladungs-E-Mail-Flow)
+- F8.3: **Benutzer bearbeiten:** Anzeigename, Rolle, Aktivierungsstatus ändern
+- F8.4: **Passwort zurücksetzen:** Admin setzt ein neues temporäres Passwort für beliebigen Benutzer (Benutzer muss es bei nächstem Login ändern)
+- F8.5: **Benutzer deaktivieren/aktivieren:** Kein Löschen — Deaktivierung erhält den Audit-Trail
+- F8.6: **Mandant-Einstellungen:** Sprache, Zeitzone, Session-Timeout (aus `tenants.settings_json`)
+- F8.7: **SMTP-Konfiguration:** Server, Port, Absender-Adresse für E-Mail-Benachrichtigungen und Passwort-Reset; Testmail-Funktion
+
+### 4.9 Modul 9: Passwort-Vergessen-Flow
+
+**Zweck:** Benutzer, die ihr Passwort vergessen haben, können es über einen verifizierten E-Mail-Link zurücksetzen.
+
+**Voraussetzung:** SMTP muss in den Admin-Einstellungen (F8.7) konfiguriert sein. Ohne SMTP zeigt die Login-Seite keinen „Passwort vergessen"-Link — stattdessen einen Hinweis, dass der Administrator das Passwort zurücksetzen kann.
+
+**Ablauf:**
+
+1. Benutzer klickt „Passwort vergessen" auf der Login-Seite → gibt E-Mail-Adresse ein
+2. Server: findet Benutzer, generiert kryptographisch sicheres Reset-Token (32 Byte, `random_bytes()`), speichert SHA-256-Hash in DB mit 1-Stunde-Ablauf
+3. Server sendet E-Mail mit einmaligem Reset-Link (enthält Klartext-Token als URL-Parameter)
+4. Benutzer klickt Link → Formular für neues Passwort (min. 12 Zeichen, zweifach eingeben)
+5. Server: validiert Token (Hash-Vergleich), prüft Ablauf, setzt neues Passwort, invalidiert Token sofort
+6. Benutzer wird zur Login-Seite geleitet; erfolgreicher Reset wird geloggt (Audit-Trail)
+
+**Sicherheitsanforderungen:**
+
+- Token wird nur als SHA-256-Hash in der DB gespeichert (nie im Klartext)
+- Antwort auf Schritt 2 ist immer identisch, unabhängig davon ob die E-Mail existiert (kein User-Enumeration)
+- Nach 5 Fehlversuchen wird das Token invalidiert (Brute-Force-Schutz)
+- Tabelle: `password_reset_tokens (id, user_id, token_hash, expires_at, used_at, created_at)`
+
+### 4.10 Modul 10: Zentrales Dashboard
 
 **Zweck:** Cockpit-Ansicht für alle Stakeholder.
 
@@ -665,6 +713,19 @@ CREATE TABLE ai_cache (
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)
 ) ENGINE=InnoDB;
 
+-- Passwort-Reset-Tokens
+CREATE TABLE password_reset_tokens (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT UNSIGNED NOT NULL,
+    token_hash      VARCHAR(64) NOT NULL,       -- SHA-256 des Klartext-Tokens
+    expires_at      DATETIME NOT NULL,
+    used_at         DATETIME DEFAULT NULL,
+    failed_attempts TINYINT UNSIGNED DEFAULT 0,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX (token_hash),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Audit-Trail
 CREATE TABLE audit_log (
     id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -727,7 +788,7 @@ CREATE TABLE document_versions (
 
 Alle Endpunkte erfordern Authentifizierung (Session-Cookie) und CSRF-Token. Antwortformat: JSON.
 
-### 8.1 Authentifizierung
+### 8.1 Authentifizierung & Passwort-Reset
 
 | Methode | Pfad | Beschreibung |
 |---|---|---|
@@ -736,6 +797,32 @@ Alle Endpunkte erfordern Authentifizierung (Session-Cookie) und CSRF-Token. Antw
 | GET | `/api/auth/me` | Aktuellen Benutzer abrufen |
 | POST | `/api/auth/totp/setup` | TOTP aktivieren (QR-Code) |
 | POST | `/api/auth/totp/verify` | TOTP-Setup bestätigen |
+| POST | `/api/auth/password-reset/request` | Reset-Link per E-Mail anfordern (kein Auth erforderlich) |
+| POST | `/api/auth/password-reset/confirm` | Neues Passwort mit Token setzen (kein Auth erforderlich) |
+
+### 8.2a Benutzerprofil (eigene Daten)
+
+| Methode | Pfad | Beschreibung |
+|---|---|---|
+| PUT | `/api/profile` | Anzeigename / E-Mail ändern (erfordert Passwort) |
+| POST | `/api/profile/change-password` | Eigenes Passwort ändern |
+| GET | `/api/profile/sessions` | Aktive Sitzungen anzeigen |
+| POST | `/api/profile/totp/setup` | TOTP-QR-Code anfordern |
+| POST | `/api/profile/totp/confirm` | TOTP-Setup bestätigen |
+| DELETE | `/api/profile/totp` | TOTP deaktivieren (erfordert Passwort) |
+
+### 8.2b Benutzerverwaltung (Admin only)
+
+| Methode | Pfad | Beschreibung |
+|---|---|---|
+| GET | `/api/admin/users` | Alle Benutzer des Mandanten |
+| POST | `/api/admin/users` | Benutzer anlegen |
+| GET | `/api/admin/users/{id}` | Benutzer-Details |
+| PUT | `/api/admin/users/{id}` | Benutzer bearbeiten (Name, Rolle, Status) |
+| POST | `/api/admin/users/{id}/reset-password` | Temporäres Passwort setzen |
+| GET | `/api/admin/settings` | Mandant-Einstellungen lesen |
+| PUT | `/api/admin/settings` | Mandant-Einstellungen speichern (inkl. SMTP) |
+| POST | `/api/admin/settings/smtp/test` | Test-E-Mail senden |
 
 ### 8.2 Kataloge
 
@@ -926,10 +1013,13 @@ Die Anwendung wird durchgehend in Deutsch entwickelt (Primärsprache für BSI Gr
 ### Phase 1: Fundament (Wochen 1–4)
 
 - Projekt-Scaffolding (Verzeichnisstruktur, Router, Auth, CSRF, DB-Migrations)
-- Benutzerverwaltung und Mandant-Grundstruktur
+- Benutzerverwaltung: Admin-Interface (Benutzer anlegen, Rolle ändern, deaktivieren, Passwort zurücksetzen)
+- Benutzerprofil: eigenes Passwort und E-Mail ändern, TOTP-Setup
+- Passwort-Vergessen-Flow (token-basiert, E-Mail; greift auf SMTP-Konfiguration zurück)
+- SMTP-Konfiguration in Mandant-Einstellungen
 - Katalog-Import (BSI Grundschutz++ Catalog JSON parsen und persistieren)
 - Katalog-Viewer (hierarchische Navigation, Suche)
-- **Tests:** `PasswordHasher`, `FieldEncryptor`, `CsrfMiddleware`, `Router` (Unit); Auth-Endpunkte Login/Logout/Me, CSRF-Rejection, Session-Timeout (Integration); Migration-Roundtrip gegen Test-DB
+- **Tests:** `PasswordHasher`, `FieldEncryptor`, `CsrfMiddleware`, `Router` (Unit); Auth-Endpunkte Login/Logout/Me, CSRF-Rejection, Session-Timeout (Integration); Passwort-Reset-Flow (Token-Generierung, Ablauf, Brute-Force-Schutz); Admin-Benutzerverwaltung CRUD; Migration-Roundtrip gegen Test-DB
 
 ### Phase 2: Modellierung (Wochen 5–8)
 
