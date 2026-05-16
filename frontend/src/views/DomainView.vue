@@ -185,29 +185,32 @@ async function submitWizard() {
   wizardBusy.value  = true
   wizardError.value = null
 
-  const res = await createDomain({
-    ...wMeta.value,
-    isms_type:  wIsmsType.value,
-    catalog_id: wCatalogId.value,
-  })
+  try {
+    const res = await createDomain({
+      ...wMeta.value,
+      isms_type:  wIsmsType.value,
+      catalog_id: wCatalogId.value,
+    })
 
-  if (!res?.success) {
-    wizardError.value = res?.error ?? 'Fehler beim Anlegen'
-    wizardBusy.value  = false
-    return
+    if (!res?.success) {
+      wizardError.value = res?.error ?? 'Fehler beim Anlegen'
+      return
+    }
+
+    const newId = res.data.domain.id
+
+    await Promise.all([
+      ...wProcesses.value.map(p => createProcess(newId, p)),
+      ...wAssets.value.map(a => createAsset(newId, a)),
+    ])
+
+    showWizard.value = false
+    await selectDomain(newId)
+  } catch {
+    wizardError.value = 'Unerwarteter Fehler. Bitte erneut versuchen.'
+  } finally {
+    wizardBusy.value = false
   }
-
-  const newId = res.data.domain.id
-
-  // Submit processes and assets in parallel
-  await Promise.all([
-    ...wProcesses.value.map(p => createProcess(newId, p)),
-    ...wAssets.value.map(a => createAsset(newId, a)),
-  ])
-
-  wizardBusy.value = false
-  showWizard.value = false
-  await selectDomain(newId)
 }
 
 onMounted(async () => {
@@ -739,33 +742,44 @@ onMounted(async () => {
             <!-- Step 5: Bestätigung -->
             <div v-if="wizardStep === 5" class="space-y-4">
               <h3 class="font-semibold text-gray-900">Schritt 5: Bestätigung</h3>
-              <div class="bg-gray-50 rounded-xl p-4 space-y-3 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Name</span>
-                  <span class="font-medium text-gray-900">{{ wMeta.name }}</span>
-                </div>
-                <div v-if="wMeta.branche" class="flex justify-between">
-                  <span class="text-gray-500">Branche</span>
-                  <span class="text-gray-900">{{ wMeta.branche }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">ISMS-Typ</span>
-                  <span class="font-medium capitalize" :class="wIsmsType === 'enhanced' ? 'text-purple-700' : 'text-blue-700'">{{ wIsmsType }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Katalog</span>
-                  <span class="text-gray-900">{{ catalogs.find(c => c.id === wCatalogId)?.name ?? '—' }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Geschäftsprozesse</span>
-                  <span class="text-gray-900">{{ wProcesses.length }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Zielobjekte</span>
-                  <span class="text-gray-900">{{ wAssets.length }}</span>
-                </div>
+
+              <!-- Creating … spinner -->
+              <div v-if="wizardBusy" class="flex flex-col items-center py-8 gap-3">
+                <div class="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+                <p class="text-sm text-gray-700 font-medium">Informationsverbund wird angelegt …</p>
+                <p class="text-xs text-gray-400 text-center">Anforderungen werden aus dem Katalog geladen.<br>Das kann einen Moment dauern.</p>
               </div>
-              <div v-if="wizardError" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ wizardError }}</div>
+
+              <!-- Summary (hidden while creating) -->
+              <template v-else>
+                <div class="bg-gray-50 rounded-xl p-4 space-y-3 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Name</span>
+                    <span class="font-medium text-gray-900">{{ wMeta.name }}</span>
+                  </div>
+                  <div v-if="wMeta.branche" class="flex justify-between">
+                    <span class="text-gray-500">Branche</span>
+                    <span class="text-gray-900">{{ wMeta.branche }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">ISMS-Typ</span>
+                    <span class="font-medium capitalize" :class="wIsmsType === 'enhanced' ? 'text-purple-700' : 'text-blue-700'">{{ wIsmsType }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Katalog</span>
+                    <span class="text-gray-900">{{ catalogs.find(c => c.id === wCatalogId)?.name ?? '—' }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Geschäftsprozesse</span>
+                    <span class="text-gray-900">{{ wProcesses.length }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Zielobjekte</span>
+                    <span class="text-gray-900">{{ wAssets.length }}</span>
+                  </div>
+                </div>
+                <div v-if="wizardError" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{{ wizardError }}</div>
+              </template>
             </div>
           </div>
 
@@ -777,14 +791,15 @@ onMounted(async () => {
             </button>
             <div v-else></div>
             <div class="flex gap-2">
-              <button @click="showWizard = false"
-                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Abbrechen</button>
+              <button @click="showWizard = false" :disabled="wizardBusy"
+                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed">Abbrechen</button>
               <button v-if="wizardStep < 5" @click="wizardStep++" :disabled="!canNext"
                 class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
                 Weiter
               </button>
               <button v-else @click="submitWizard" :disabled="wizardBusy || !wCatalogId"
-                class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                class="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <span v-if="wizardBusy" class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
                 {{ wizardBusy ? 'Anlegen …' : 'Verbund anlegen' }}
               </button>
             </div>
