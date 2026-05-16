@@ -17,7 +17,9 @@ use GsppManager\Controller\AuthController;
 use GsppManager\Controller\CatalogController;
 use GsppManager\Controller\DashboardController;
 use GsppManager\Controller\DomainController;
+use GsppManager\Controller\ImplementationController;
 use GsppManager\Controller\ProfileController;
+use GsppManager\Controller\SspController;
 
 // Register middleware
 $router->registerMiddleware('auth', [AuthMiddleware::class, 'handle']);
@@ -75,7 +77,12 @@ $router->post('/api/domains/{id}/tailoring',                   DomainController:
 $router->post('/api/domains/{id}/generate-profile',            DomainController::class, 'generateProfile',['auth', 'csrf']);
 
 // ─── Implementations (SSP / Grundschutzcheck) ───────────────────
-// TODO: Phase 3 implementation
+$router->get('/api/domains/{id}/implementations',       ImplementationController::class, 'list',           ['auth']);
+$router->put('/api/implementations/{implId}',           ImplementationController::class, 'update',         ['auth', 'csrf']);
+$router->post('/api/implementations/{implId}/evidence', ImplementationController::class, 'uploadEvidence', ['auth', 'csrf']);
+$router->get('/api/domains/{id}/ssp/export',            SspController::class,            'export',         ['auth']);
+$router->post('/api/domains/{id}/ssp/import',           SspController::class,            'import',         ['auth', 'csrf']);
+$router->post('/api/domains/{id}/generate-ssp',         SspController::class,            'generateSsp',    ['auth', 'csrf']);
 
 // ─── Risks ──────────────────────────────────────────────────────
 // TODO: Phase 4 implementation

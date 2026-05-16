@@ -1,9 +1,17 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/useAuthStore.js'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
-const auth = useAuthStore()
+const auth  = useAuthStore()
 const router = useRouter()
+const route  = useRoute()
+
+// When inside /verbund/:id/..., surface a direct Grundschutzcheck link
+const currentDomainId = computed(() => {
+  const m = route.path.match(/^\/verbund\/(\d+)/)
+  return m ? m[1] : null
+})
 
 const navigation = [
   { name: 'Dashboard',           path: '/',         icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
@@ -45,12 +53,25 @@ async function handleLogout() {
         :key="item.path"
         :to="item.path"
         class="flex items-center px-3 py-2.5 text-sm rounded-lg transition-colors"
-        :class="$route.path === item.path
+        :class="$route.path === item.path || (item.path !== '/' && $route.path.startsWith(item.path))
           ? 'bg-primary-700 text-white'
           : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
       >
         <span class="mr-3 text-lg">{{ item.icon }}</span>
         {{ item.name }}
+      </router-link>
+
+      <!-- Grundschutzcheck sub-link: only shown when inside a domain -->
+      <router-link
+        v-if="currentDomainId && auth.role !== 'readonly'"
+        :to="`/verbund/${currentDomainId}/grundschutzcheck`"
+        class="flex items-center pl-9 pr-3 py-2 text-sm rounded-lg transition-colors"
+        :class="$route.path.endsWith('/grundschutzcheck')
+          ? 'bg-primary-700 text-white'
+          : 'text-gray-400 hover:bg-gray-800 hover:text-white'"
+      >
+        <span class="mr-2 text-base">✅</span>
+        Grundschutzcheck
       </router-link>
     </nav>
 
