@@ -271,7 +271,6 @@ onMounted(loadCatalogs)
                   <GlossaryTooltip
                     term="Anforderungstext"
                     explanation="Der normative Text der Sicherheitsanforderung aus dem BSI Grundschutz++ Katalog."
-                    align="right"
                   />
                 </p>
                 <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{{ control.statement }}</p>
