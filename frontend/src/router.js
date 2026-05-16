@@ -39,6 +39,11 @@ const routes = [
     component: () => import('@/views/DomainView.vue'),
   },
   {
+    path: '/verbund/:id',
+    name: 'DomainDetail',
+    component: () => import('@/views/DomainView.vue'),
+  },
+  {
     path: '/verbund/:id/grundschutzcheck',
     name: 'SspEditor',
     component: () => import('@/views/SspEditorView.vue'),

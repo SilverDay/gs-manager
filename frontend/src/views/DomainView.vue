@@ -1,11 +1,14 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useDomain } from '@/composables/useDomain.js'
 import { useCatalog } from '@/composables/useCatalog.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import GlossaryTooltip from '@/components/GlossaryTooltip.vue'
 
-const auth = useAuthStore()
+const auth   = useAuthStore()
+const route  = useRoute()
+const router = useRouter()
 const {
   domains, domain, assets, processes, scopedControls, controlsMeta,
   loading, error,
@@ -27,6 +30,10 @@ const activeTab        = ref('overview')   // overview | assets | processes | co
 async function selectDomain(id) {
   selectedDomainId.value = id
   activeTab.value = 'overview'
+  // Update URL so the sidebar can show context-sensitive links (e.g. Grundschutzcheck)
+  if (route.path !== `/verbund/${id}`) {
+    router.replace(`/verbund/${id}`)
+  }
   await Promise.all([loadDomain(id), loadAssets(id), loadProcesses(id)])
   await loadScopedControls(id)
 }
@@ -215,6 +222,11 @@ async function submitWizard() {
 
 onMounted(async () => {
   await Promise.all([loadDomains(), loadCatalogs()])
+  // Auto-select domain when navigated directly to /verbund/:id
+  const idParam = route.params.id
+  if (idParam) {
+    await selectDomain(Number(idParam))
+  }
 })
 </script>
 
