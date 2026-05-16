@@ -169,11 +169,11 @@ onMounted(loadCatalogs)
           <p class="text-sm text-gray-400">Wählen Sie links einen Katalog aus.</p>
         </div>
 
-        <!-- Controls list (relative so the detail panel can overlay it absolutely) -->
-        <div v-else class="flex-1 relative min-h-0">
+        <!-- Controls list -->
+        <div v-else class="flex-1 flex gap-4 min-h-0">
 
-          <!-- List panel — always fills full width -->
-          <div class="absolute inset-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <!-- List panel -->
+          <div class="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm min-w-0 overflow-hidden">
 
             <!-- Search bar -->
             <div class="p-4 border-b border-gray-100">
@@ -234,18 +234,10 @@ onMounted(loadCatalogs)
             </div>
           </div>
 
-          <!-- Control detail panel — overlays the right portion of the list -->
-          <Transition
-            enter-active-class="transition ease-out duration-200"
-            enter-from-class="opacity-0 translate-x-4"
-            enter-to-class="opacity-100 translate-x-0"
-            leave-active-class="transition ease-in duration-150"
-            leave-from-class="opacity-100 translate-x-0"
-            leave-to-class="opacity-0 translate-x-4"
-          >
+          <!-- Control detail panel -->
           <div
             v-if="control"
-            class="absolute right-0 top-0 bottom-0 w-96 max-w-full bg-white rounded-xl border border-gray-200 shadow-xl flex flex-col overflow-hidden z-10"
+            class="w-80 flex-shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden"
           >
             <div class="flex items-start justify-between p-4 border-b border-gray-100">
               <div>
@@ -300,7 +292,6 @@ onMounted(loadCatalogs)
               </div>
             </div>
           </div>
-          </Transition>
         </div>
       </div>
     </div>
