@@ -55,6 +55,7 @@ $router->get('/api/dashboard', DashboardController::class, 'index', ['auth']);
 
 // ─── Catalogs ───────────────────────────────────────────────────
 $router->get('/api/catalogs', CatalogController::class, 'list', ['auth']);
+$router->get('/api/catalogs/library', CatalogController::class, 'library', ['auth']);
 $router->post('/api/catalogs/import', CatalogController::class, 'import', ['auth', 'csrf']);
 $router->get('/api/catalogs/{id}/controls', CatalogController::class, 'controls', ['auth']);
 $router->get('/api/catalogs/{id}/controls/{controlId}', CatalogController::class, 'control', ['auth']);

@@ -6,10 +6,10 @@ import GlossaryTooltip from '@/components/GlossaryTooltip.vue'
 
 const auth = useAuthStore()
 const {
-  catalogs, controls, control, meta,
+  catalogs, controls, control, meta, library,
   loading, error,
   loadCatalogs, importFromJson, importFromUrl,
-  loadControls, loadControl,
+  loadControls, loadControl, loadLibrary,
 } = useCatalog()
 
 const canImport = computed(() => ['admin', 'isb'].includes(auth.role))
@@ -57,12 +57,27 @@ function closeDetail() {
 
 // ── Import modal ──────────────────────────────────────────────────────────
 const showImport   = ref(false)
-const importTab    = ref('json')
+const importTab    = ref('library')
 const importJson   = ref('')
 const importUrl    = ref('')
 const importName   = ref('')
 const importError  = ref(null)
 const importing    = ref(false)
+
+function openImport() {
+  showImport.value  = true
+  importTab.value   = 'library'
+  importError.value = null
+  if (library.value.length === 0) loadLibrary()
+}
+
+/** Pre-fill the URL tab from a library entry and switch to it. */
+function useLibraryEntry(entry) {
+  importUrl.value  = entry.raw_url
+  importName.value = entry.name
+  importTab.value  = 'url'
+  importError.value = null
+}
 
 async function submitImport() {
   importing.value = true
@@ -100,7 +115,7 @@ onMounted(loadCatalogs)
       </div>
       <button
         v-if="canImport"
-        @click="showImport = true"
+        @click="openImport"
         class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
       >
         + Katalog importieren
@@ -122,7 +137,7 @@ onMounted(loadCatalogs)
           <p class="text-sm text-gray-500 mb-3">Noch kein Katalog importiert.</p>
           <button
             v-if="canImport"
-            @click="showImport = true"
+            @click="openImport"
             class="text-sm text-primary-600 hover:underline"
           >Jetzt importieren</button>
         </div>
@@ -299,55 +314,113 @@ onMounted(loadCatalogs)
             <!-- Tabs -->
             <div class="flex gap-1 bg-gray-100 rounded-lg p-1">
               <button
-                @click="importTab = 'json'"
+                @click="importTab = 'library'"
                 class="flex-1 py-1.5 text-sm font-medium rounded-md transition-colors"
-                :class="importTab === 'json' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-              >JSON-Datei</button>
+                :class="importTab === 'library' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+              >Bibliothek</button>
               <button
                 @click="importTab = 'url'"
                 class="flex-1 py-1.5 text-sm font-medium rounded-md transition-colors"
                 :class="importTab === 'url' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-              >URL (GitHub)</button>
+              >URL</button>
+              <button
+                @click="importTab = 'json'"
+                class="flex-1 py-1.5 text-sm font-medium rounded-md transition-colors"
+                :class="importTab === 'json' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+              >JSON</button>
             </div>
 
-            <!-- Name -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Name <span class="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                v-model="importName"
-                type="text"
-                placeholder="z.B. BSI GS++ Anwenderkatalog 2026"
-                class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            <div v-if="importTab === 'json'">
-              <label class="block text-sm font-medium text-gray-700 mb-1">OSCAL Catalog JSON</label>
-              <textarea
-                v-model="importJson"
-                rows="8"
-                placeholder='{ "catalog": { "uuid": "...", "metadata": { ... }, "groups": [ ... ] } }'
-                class="w-full text-xs font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-              />
-            </div>
-
-            <div v-if="importTab === 'url'">
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Quell-URL
-                <span class="text-gray-400 font-normal text-xs ml-1">(HTTPS)</span>
-              </label>
-              <input
-                v-model="importUrl"
-                type="url"
-                placeholder="https://raw.githubusercontent.com/BSI-Bund/..."
-                class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <p class="text-xs text-gray-400 mt-1">
-                Die URL wird gespeichert und ermöglicht spätere Update-Prüfungen.
+            <!-- ── Bibliothek tab ─────────────────────────────────── -->
+            <div v-if="importTab === 'library'" class="space-y-2">
+              <p class="text-xs text-gray-500">
+                Bekannte Katalogquellen — klicken Sie auf einen Eintrag, um ihn zu importieren.
               </p>
+              <div
+                v-for="entry in library"
+                :key="entry.key"
+                class="group border border-gray-200 rounded-lg p-3 hover:border-primary-300 hover:bg-primary-50 transition-colors cursor-pointer"
+                @click="useLibraryEntry(entry)"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-sm font-semibold text-gray-900">{{ entry.name }}</span>
+                      <span
+                        class="text-xs px-1.5 py-0.5 rounded font-medium"
+                        :class="entry.source === 'BSI'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-orange-100 text-orange-700'"
+                      >{{ entry.source }}</span>
+                      <span
+                        v-for="tag in entry.tags"
+                        :key="tag"
+                        class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500"
+                      >{{ tag }}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1 leading-relaxed">{{ entry.description }}</p>
+                  </div>
+                  <span class="text-xs text-primary-600 font-medium whitespace-nowrap group-hover:underline mt-0.5">
+                    Verwenden →
+                  </span>
+                </div>
+              </div>
+              <div v-if="library.length === 0" class="text-sm text-gray-400 text-center py-4">
+                Bibliothek wird geladen …
+              </div>
             </div>
+
+            <!-- ── URL tab ─────────────────────────────────────────── -->
+            <template v-if="importTab === 'url'">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Name <span class="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  v-model="importName"
+                  type="text"
+                  placeholder="z.B. BSI GS++ Anwenderkatalog 2026"
+                  class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Quell-URL <span class="text-gray-400 font-normal text-xs ml-1">(HTTPS)</span>
+                </label>
+                <input
+                  v-model="importUrl"
+                  type="url"
+                  placeholder="https://raw.githubusercontent.com/BSI-Bund/..."
+                  class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p class="text-xs text-gray-400 mt-1">
+                  Die URL wird gespeichert und ermöglicht spätere Update-Prüfungen.
+                </p>
+              </div>
+            </template>
+
+            <!-- ── JSON tab ────────────────────────────────────────── -->
+            <template v-if="importTab === 'json'">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Name <span class="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  v-model="importName"
+                  type="text"
+                  placeholder="z.B. BSI GS++ Anwenderkatalog 2026"
+                  class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">OSCAL Catalog JSON</label>
+                <textarea
+                  v-model="importJson"
+                  rows="8"
+                  placeholder='{ "catalog": { "uuid": "...", "metadata": { ... }, "groups": [ ... ] } }'
+                  class="w-full text-xs font-mono border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                />
+              </div>
+            </template>
 
             <div v-if="importError" class="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
               {{ importError }}
@@ -360,6 +433,7 @@ onMounted(loadCatalogs)
               class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
             >Abbrechen</button>
             <button
+              v-if="importTab !== 'library'"
               @click="submitImport"
               :disabled="importing || (importTab === 'json' && !importJson) || (importTab === 'url' && !importUrl)"
               class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

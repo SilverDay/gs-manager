@@ -29,6 +29,56 @@ class CatalogController extends BaseController
         $this->json(['catalogs' => $catalogs]);
     }
 
+    // ── GET /api/catalogs/library ─────────────────────────────────────────────
+
+    /**
+     * Return a curated list of known OSCAL catalog sources for one-click import.
+     * Update the KNOWN_SOURCES list below when new catalogs become available.
+     */
+    public function library(array $params): void
+    {
+        $sources = [
+            [
+                'key'         => 'bsi-anwenderkatalog',
+                'name'        => 'BSI GS++ Anwenderkatalog',
+                'description' => 'Vollständiger Anforderungskatalog für BSI Grundschutz++ — enthält alle Prozessbausteine und Anforderungen der Stand-der-Technik-Bibliothek.',
+                'source'      => 'BSI',
+                'tags'        => ['Pflicht', 'Primär', 'OSCAL 1.1.3'],
+                'repo_url'    => 'https://github.com/BSI-Bund/Stand-der-Technik-Bibliothek',
+                'raw_url'     => 'https://raw.githubusercontent.com/BSI-Bund/Stand-der-Technik-Bibliothek/main/anwenderkatalog/Anwenderkatalog.json',
+            ],
+            [
+                'key'         => 'bsi-dsgvo',
+                'name'        => 'DSGVO-Beispielkatalog',
+                'description' => 'Anforderungskatalog mit datenschutzrechtlichen Maßnahmen gemäß DSGVO Art. 32, als OSCAL-Katalog modelliert.',
+                'source'      => 'NTT DATA',
+                'tags'        => ['Beispiel', 'DSGVO'],
+                'repo_url'    => 'https://github.com/NTT-Data-Deutschland-SE/Grundschutz-Plus-Plus-Tools',
+                'raw_url'     => 'https://raw.githubusercontent.com/NTT-Data-Deutschland-SE/Grundschutz-Plus-Plus-Tools/main/beispiel-kataloge/DSGVO-Katalog.json',
+            ],
+            [
+                'key'         => 'bsi-kritis',
+                'name'        => 'KRITIS-Beispielkatalog',
+                'description' => 'Anforderungskatalog für kritische Infrastrukturen (KRITIS) nach dem IT-Sicherheitsgesetz 2.0.',
+                'source'      => 'NTT DATA',
+                'tags'        => ['Beispiel', 'KRITIS'],
+                'repo_url'    => 'https://github.com/NTT-Data-Deutschland-SE/Grundschutz-Plus-Plus-Tools',
+                'raw_url'     => 'https://raw.githubusercontent.com/NTT-Data-Deutschland-SE/Grundschutz-Plus-Plus-Tools/main/beispiel-kataloge/KRITIS-Katalog.json',
+            ],
+            [
+                'key'         => 'bsi-c5',
+                'name'        => 'BSI C5 Cloud-Katalog',
+                'description' => 'BSI Cloud Computing Compliance Controls Catalogue (C5) — Sicherheitsanforderungen für Cloud-Dienste.',
+                'source'      => 'NTT DATA',
+                'tags'        => ['Beispiel', 'Cloud', 'C5'],
+                'repo_url'    => 'https://github.com/NTT-Data-Deutschland-SE/Grundschutz-Plus-Plus-Tools',
+                'raw_url'     => 'https://raw.githubusercontent.com/NTT-Data-Deutschland-SE/Grundschutz-Plus-Plus-Tools/main/beispiel-kataloge/C5-Katalog.json',
+            ],
+        ];
+
+        $this->json(['sources' => $sources]);
+    }
+
     // ── POST /api/catalogs/import ─────────────────────────────────────────────
 
     public function import(array $params): void

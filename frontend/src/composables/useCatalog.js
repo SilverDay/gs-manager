@@ -86,10 +86,20 @@ export function useCatalog() {
     return execute({ method: 'POST' })
   }
 
+  // ── Catalog library ───────────────────────────────────────────────────────
+
+  const library = ref([])
+
+  async function loadLibrary() {
+    const { execute } = useApi('/api/catalogs/library')
+    const res = await execute()
+    if (res?.success) library.value = res.data.sources ?? []
+  }
+
   return {
-    catalogs, controls, control, meta,
+    catalogs, controls, control, meta, library,
     loading, error,
     loadCatalogs, importFromJson, importFromUrl,
-    loadControls, loadControl, checkUpdate,
+    loadControls, loadControl, checkUpdate, loadLibrary,
   }
 }
