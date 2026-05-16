@@ -8,6 +8,22 @@ const routes = [
     meta: { public: true },
   },
   {
+    path: '/passwort-zuruecksetzen',
+    name: 'PasswordReset',
+    component: () => import('@/views/PasswordResetView.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/profil',
+    name: 'Profile',
+    component: () => import('@/views/ProfileView.vue'),
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('@/views/AdminView.vue'),
+  },
+  {
     path: '/',
     name: 'Dashboard',
     component: () => import('@/views/DashboardView.vue'),

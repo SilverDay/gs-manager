@@ -79,6 +79,12 @@ async function handleLogin() {
             <span v-if="loading">Anmelden …</span>
             <span v-else>Anmelden</span>
           </button>
+
+          <div class="text-center">
+            <router-link to="/passwort-zuruecksetzen" class="text-sm text-primary-600 hover:underline">
+              Passwort vergessen?
+            </router-link>
+          </div>
         </div>
       </div>
 

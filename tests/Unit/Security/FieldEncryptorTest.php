@@ -11,12 +11,20 @@ use RuntimeException;
 class FieldEncryptorTest extends UnitTestCase
 {
     private FieldEncryptor $encryptor;
+    private string $originalKey;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->originalKey = $_ENV['FIELD_ENCRYPTION_KEY'] ?? '';
         $_ENV['FIELD_ENCRYPTION_KEY'] = str_repeat('ab', 32); // valid 64-char hex
         $this->encryptor = new FieldEncryptor();
+    }
+
+    protected function tearDown(): void
+    {
+        $_ENV['FIELD_ENCRYPTION_KEY'] = $this->originalKey;
+        parent::tearDown();
     }
 
     public function test_encrypt_returns_non_empty_base64_string(): void

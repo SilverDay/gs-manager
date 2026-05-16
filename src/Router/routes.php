@@ -12,10 +12,12 @@ declare(strict_types=1);
 
 use GsppManager\Middleware\AuthMiddleware;
 use GsppManager\Middleware\CsrfMiddleware;
+use GsppManager\Controller\AdminController;
 use GsppManager\Controller\AuthController;
 use GsppManager\Controller\CatalogController;
 use GsppManager\Controller\DashboardController;
 use GsppManager\Controller\DomainController;
+use GsppManager\Controller\ProfileController;
 
 // Register middleware
 $router->registerMiddleware('auth', [AuthMiddleware::class, 'handle']);
@@ -26,6 +28,27 @@ $router->post('/api/auth/login', AuthController::class, 'login');
 $router->post('/api/auth/logout', AuthController::class, 'logout', ['auth']);
 $router->get('/api/auth/me', AuthController::class, 'me', ['auth']);
 $router->get('/api/auth/csrf-token', AuthController::class, 'csrfToken');
+$router->post('/api/auth/password-reset/request', AuthController::class, 'passwordResetRequest');
+$router->post('/api/auth/password-reset/confirm', AuthController::class, 'passwordResetConfirm');
+
+// ─── User Profile (self-service) ────────────────────────────────
+$router->get('/api/profile',                      ProfileController::class, 'show',          ['auth']);
+$router->put('/api/profile',                      ProfileController::class, 'update',        ['auth', 'csrf']);
+$router->post('/api/profile/change-password',     ProfileController::class, 'changePassword',['auth', 'csrf']);
+$router->get('/api/profile/sessions',             ProfileController::class, 'sessions',      ['auth']);
+$router->post('/api/profile/totp/setup',          ProfileController::class, 'totpSetup',     ['auth', 'csrf']);
+$router->post('/api/profile/totp/confirm',        ProfileController::class, 'totpConfirm',   ['auth', 'csrf']);
+$router->delete('/api/profile/totp',              ProfileController::class, 'totpDelete',    ['auth', 'csrf']);
+
+// ─── Admin ──────────────────────────────────────────────────────
+$router->get('/api/admin/users',                        AdminController::class, 'listUsers',         ['auth']);
+$router->post('/api/admin/users',                       AdminController::class, 'createUser',        ['auth', 'csrf']);
+$router->get('/api/admin/users/{id}',                   AdminController::class, 'showUser',          ['auth']);
+$router->put('/api/admin/users/{id}',                   AdminController::class, 'updateUser',        ['auth', 'csrf']);
+$router->post('/api/admin/users/{id}/reset-password',   AdminController::class, 'resetUserPassword', ['auth', 'csrf']);
+$router->get('/api/admin/settings',                     AdminController::class, 'getSettings',       ['auth']);
+$router->put('/api/admin/settings',                     AdminController::class, 'updateSettings',    ['auth', 'csrf']);
+$router->post('/api/admin/settings/smtp/test',          AdminController::class, 'testSmtp',          ['auth', 'csrf']);
 
 // ─── Dashboard ──────────────────────────────────────────────────
 $router->get('/api/dashboard', DashboardController::class, 'index', ['auth']);

@@ -101,3 +101,50 @@ export function useApi(path, options = {}) {
 export function resetCsrf() {
   csrfToken = null
 }
+
+/**
+ * Imperative API client for views that call many different endpoints.
+ * Returns { get, post, put, delete } — each returns the parsed JSON response.
+ */
+export function useApiClient() {
+  async function request(method, path, body = null) {
+    const headers = { 'Content-Type': 'application/json' }
+
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+      const token = await ensureCsrfToken()
+      if (token) headers['X-CSRF-Token'] = token
+    }
+
+    const opts = { method, headers, credentials: 'include' }
+    if (body !== null) opts.body = JSON.stringify(body)
+
+    try {
+      const res = await fetch(`${BASE_URL}${path}`, opts)
+      const json = await res.json()
+
+      if (res.status === 401) {
+        const [{ router }, { useAuthStore }] = await Promise.all([
+          import('@/router.js'),
+          import('@/stores/useAuthStore.js'),
+        ])
+        useAuthStore().user = null
+        router.push('/login')
+      }
+
+      if (res.status === 403 && json.error?.includes('CSRF')) {
+        csrfToken = null
+      }
+
+      return json
+    } catch {
+      return { success: false, error: 'Netzwerkfehler. Bitte Verbindung prüfen.' }
+    }
+  }
+
+  return {
+    get:    (path)        => request('GET',    path),
+    post:   (path, body)  => request('POST',   path, body),
+    put:    (path, body)  => request('PUT',    path, body),
+    delete: (path, body)  => request('DELETE', path, body),
+  }
+}

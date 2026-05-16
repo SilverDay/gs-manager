@@ -6,13 +6,22 @@ const auth = useAuthStore()
 const router = useRouter()
 
 const navigation = [
-  { name: 'Dashboard',        path: '/',                     icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
-  { name: 'Kataloge',         path: '/kataloge',             icon: '📚', roles: ['admin','isb'] },
-  { name: 'Informationsverbund', path: '/verbund',           icon: '🏢', roles: ['admin','isb','fachverantwortlich'] },
+  { name: 'Dashboard',           path: '/',         icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
+  { name: 'Kataloge',            path: '/kataloge', icon: '📚', roles: ['admin','isb'] },
+  { name: 'Informationsverbund', path: '/verbund',  icon: '🏢', roles: ['admin','isb','fachverantwortlich'] },
+]
+
+const bottomNavigation = [
+  { name: 'Mein Profil',   path: '/profil', icon: '👤', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
+  { name: 'Administration', path: '/admin',  icon: '⚙️', roles: ['admin'] },
 ]
 
 function visibleItems() {
   return navigation.filter(item => item.roles.includes(auth.role))
+}
+
+function visibleBottomItems() {
+  return bottomNavigation.filter(item => item.roles.includes(auth.role))
 }
 
 async function handleLogout() {
@@ -41,6 +50,22 @@ async function handleLogout() {
           : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
       >
         <span class="mr-3 text-lg">{{ item.icon }}</span>
+        {{ item.name }}
+      </router-link>
+    </nav>
+
+    <!-- Bottom nav (Profile, Admin) -->
+    <nav class="px-3 pb-2 space-y-1 border-t border-gray-700 pt-3">
+      <router-link
+        v-for="item in visibleBottomItems()"
+        :key="item.path"
+        :to="item.path"
+        class="flex items-center px-3 py-2 text-sm rounded-lg transition-colors"
+        :class="$route.path.startsWith(item.path)
+          ? 'bg-primary-700 text-white'
+          : 'text-gray-400 hover:bg-gray-800 hover:text-white'"
+      >
+        <span class="mr-3 text-base">{{ item.icon }}</span>
         {{ item.name }}
       </router-link>
     </nav>
