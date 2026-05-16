@@ -10,7 +10,7 @@ const auth = useAuthStore()
     <!-- Authenticated layout with sidebar -->
     <div v-if="auth.isAuthenticated" class="flex">
       <LayoutSidebar />
-      <main class="flex-1 ml-64 p-6">
+      <main class="flex-1 ml-64 p-6 overflow-x-hidden min-w-0">
         <router-view />
       </main>
     </div>
