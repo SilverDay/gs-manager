@@ -1,0 +1,36 @@
+version: "3.8"
+
+# Production override — use together with docker-compose.yml:
+#   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Requires a .env.prod file with production secrets (never commit it).
+
+services:
+  web:
+    build:
+      target: prod
+    volumes:
+      # Remove dev bind-mount; only persist uploaded evidence
+      - storage_data:/var/www/html/storage
+    env_file:
+      - .env.prod
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/auth/csrf-token"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  db:
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+
+  # Frontend service is omitted in production — assets are compiled into the image.
+
+volumes:
+  storage_data:

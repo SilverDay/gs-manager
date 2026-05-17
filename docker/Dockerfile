@@ -1,4 +1,4 @@
-FROM php:8.3-apache
+FROM php:8.3-apache AS prod
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -50,4 +50,15 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && echo "session.cookie_httponly = 1" >> "$PHP_INI_DIR/conf.d/app.ini" \
     && echo "session.cookie_samesite = Strict" >> "$PHP_INI_DIR/conf.d/app.ini"
 
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+# ── dev stage: adds pcov for coverage reports ────────────────────────────────
+FROM prod AS dev
+RUN pecl install pcov \
+    && docker-php-ext-enable pcov \
+    && echo "pcov.enabled=1" >> "$PHP_INI_DIR/conf.d/pcov.ini" \
+    && echo "pcov.directory=/var/www/html/src" >> "$PHP_INI_DIR/conf.d/pcov.ini"
