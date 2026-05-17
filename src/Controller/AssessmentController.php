@@ -78,8 +78,15 @@ class AssessmentController extends BaseController
         }
 
         $fields = array_intersect_key($body, array_flip([
-            'title', 'assessor_name', 'assessor_org', 'assessor_email',
-            'period_start', 'period_end', 'methodology', 'rules_of_engagement', 'status',
+            'title',
+            'assessor_name',
+            'assessor_org',
+            'assessor_email',
+            'period_start',
+            'period_end',
+            'methodology',
+            'rules_of_engagement',
+            'status',
         ]));
 
         $planId = $this->repo->create($domainId, $fields, $this->userId());
@@ -133,8 +140,15 @@ class AssessmentController extends BaseController
         }
 
         $fields = array_intersect_key($body, array_flip([
-            'title', 'assessor_name', 'assessor_org', 'assessor_email',
-            'period_start', 'period_end', 'methodology', 'rules_of_engagement', 'status',
+            'title',
+            'assessor_name',
+            'assessor_org',
+            'assessor_email',
+            'period_start',
+            'period_end',
+            'methodology',
+            'rules_of_engagement',
+            'status',
         ]));
 
         $updated = $this->repo->update($planId, $tenantId, $fields, $this->userId());
@@ -143,8 +157,17 @@ class AssessmentController extends BaseController
             return;
         }
 
-        $trackFields = ['title', 'assessor_name', 'assessor_org', 'assessor_email',
-                        'period_start', 'period_end', 'methodology', 'rules_of_engagement', 'status'];
+        $trackFields = [
+            'title',
+            'assessor_name',
+            'assessor_org',
+            'assessor_email',
+            'period_start',
+            'period_end',
+            'methodology',
+            'rules_of_engagement',
+            'status'
+        ];
         $changes     = AuditLogger::diff($existing, $fields, $trackFields);
         AuditLogger::log('assessment.plan.update', 'assessment_plans', $planId, $changes);
 
@@ -227,7 +250,10 @@ class AssessmentController extends BaseController
         }
 
         $fields = array_intersect_key($body, array_flip([
-            'method', 'result', 'observation', 'risk_statement',
+            'method',
+            'result',
+            'observation',
+            'risk_statement',
         ]));
 
         $updated = $this->repo->updateFinding($findingId, $tenantId, $fields, $this->userId());
@@ -313,10 +339,5 @@ class AssessmentController extends BaseController
             }
         }
         return null;
-    }
-
-    private function safeFilename(string $name): string
-    {
-        return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $name) ?? 'export';
     }
 }

@@ -42,8 +42,17 @@ class TotpService
     /**
      * Verify a TOTP code against the secret.
      * Accepts ±1 time step (30 s each) to tolerate clock skew.
+     *
+     * @param string   $secret       Base32-encoded TOTP secret.
+     * @param string   $code         6-digit code submitted by the user.
+     * @param int      $window       Number of time steps to accept on either side of current.
+     * @param int|null $lastUsedStep The last accepted counter step (from DB). When provided,
+     *                               a code that maps to this step or an earlier one is rejected
+     *                               to prevent replay attacks within the acceptance window.
+     *
+     * @return int|false The matched counter step on success, false on failure.
      */
-    public static function verify(string $secret, string $code, int $window = 1): bool
+    public static function verify(string $secret, string $code, int $window = 1, ?int $lastUsedStep = null): int|false
     {
         if (!preg_match('/^\d{6}$/', $code)) {
             return false;
@@ -58,8 +67,13 @@ class TotpService
         $expected = (int) $code;
 
         for ($i = -$window; $i <= $window; $i++) {
-            if (self::hotp($keyBytes, $counter + $i) === $expected) {
-                return true;
+            $step = $counter + $i;
+            if (self::hotp($keyBytes, $step) === $expected) {
+                // Reject if this step was already used (replay protection)
+                if ($lastUsedStep !== null && $step <= $lastUsedStep) {
+                    return false;
+                }
+                return $step;
             }
         }
 

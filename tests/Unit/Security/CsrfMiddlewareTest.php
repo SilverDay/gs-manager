@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace GsppManager\Tests\Unit\Middleware;
+namespace GsppManager\Tests\Unit\Security;
 
 use GsppManager\Middleware\CsrfMiddleware;
 use GsppManager\Tests\Unit\UnitTestCase;

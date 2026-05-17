@@ -249,13 +249,15 @@ class ProfileController extends BaseController
         $encryptor = new FieldEncryptor();
         $secret    = $encryptor->decrypt($user['totp_secret_enc']);
 
-        if (!TotpService::verify($secret, trim($body['code']))) {
+        // Capture the matched step so the same code cannot be replayed immediately
+        $matchedStep = TotpService::verify($secret, trim($body['code']));
+        if ($matchedStep === false) {
             $this->error('Ungültiger TOTP-Code.', 403);
             return;
         }
 
-        $pdo->prepare('UPDATE users SET totp_enabled = TRUE WHERE id = ? AND tenant_id = ?')
-            ->execute([$this->userId(), $this->tenantId()]);
+        $pdo->prepare('UPDATE users SET totp_enabled = TRUE, totp_last_used_step = ? WHERE id = ? AND tenant_id = ?')
+            ->execute([$matchedStep, $this->userId(), $this->tenantId()]);
 
         AuditLogger::log('profile.totp_enabled', 'users', $this->userId());
 

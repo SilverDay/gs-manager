@@ -138,14 +138,39 @@ class DomainController extends BaseController
             return;
         }
 
+        $oldIsmsType = $domain['isms_type'];
+        $newIsmsType = $body['isms_type'] ?? $oldIsmsType;
+
         $this->repo->update((int) $domain['id'], [
             'name'        => trim($body['name']),
             'description' => trim($body['description'] ?? ''),
-            'isms_type'   => $body['isms_type'] ?? $domain['isms_type'],
+            'isms_type'   => $newIsmsType,
             'status'      => $body['status']    ?? $domain['status'],
         ]);
 
         AuditLogger::log('update', 'information_domains', (int) $domain['id']);
+
+        // When the ISMS type changes, re-scope controls from the linked catalog
+        if ($newIsmsType !== $oldIsmsType) {
+            $meta      = json_decode($domain['metadata_json'] ?? '{}', true) ?? [];
+            $catalogId = (int) ($meta['catalog_id'] ?? 0);
+            if ($catalogId > 0) {
+                try {
+                    $catalog = $this->catalogRepo->findByIdAndTenant($catalogId, $this->tenantId());
+                    if ($catalog !== null && !empty($catalog['catalog_json'])) {
+                        $controls = $this->tailoring->loadControlsFromCatalog($catalogId, $newIsmsType, $this->parser);
+                        $this->repo->saveScopedControls((int) $domain['id'], $controls, $catalogId);
+                        AuditLogger::log('rescope_controls', 'information_domains', (int) $domain['id'], [
+                            'old_isms_type' => $oldIsmsType,
+                            'new_isms_type' => $newIsmsType,
+                        ]);
+                    }
+                } catch (RuntimeException $e) {
+                    // Log but don't fail the update — controls can be re-scoped manually
+                    error_log('Re-scoping failed after isms_type change: ' . $e->getMessage());
+                }
+            }
+        }
 
         $this->json(['updated' => true]);
     }
@@ -194,6 +219,72 @@ class DomainController extends BaseController
         AuditLogger::log('create', 'assets', $assetId);
 
         $this->json(['asset_id' => $assetId], 201);
+    }
+
+    // ── POST /api/domains/{id}/assets/import-category ────────────────────────
+
+    /**
+     * Bulk-create a named category of assets in one request.
+     * Body: { "category_name": "...", "assets": [ {"name": "...", "asset_type": "...", ...} ] }
+     */
+    public function importAssetCategory(array $params): void
+    {
+        if (!AuthMiddleware::requireRole(['admin', 'isb', 'fachverantwortlich'])) {
+            return;
+        }
+
+        $domain = $this->resolveDomain($params);
+        if ($domain === null) {
+            return;
+        }
+
+        $body  = $this->requestBody();
+        $error = $this->validateRequired($body, ['category_name', 'assets']);
+        if ($error !== null) {
+            $this->error($error, 422);
+            return;
+        }
+
+        $categoryName = trim($body['category_name']);
+        if ($categoryName === '') {
+            $this->error('category_name darf nicht leer sein.', 422);
+            return;
+        }
+
+        if (!is_array($body['assets']) || empty($body['assets'])) {
+            $this->error('assets muss ein nicht-leeres Array sein.', 422);
+            return;
+        }
+
+        $validNeeds  = ['normal', 'high'];
+        $created     = [];
+        $domainId    = (int) $domain['id'];
+
+        foreach ($body['assets'] as $idx => $asset) {
+            if (empty($asset['name'])) {
+                $this->error("assets[{$idx}].name ist erforderlich.", 422);
+                return;
+            }
+            foreach (['protection_need_c', 'protection_need_i', 'protection_need_a'] as $field) {
+                if (isset($asset[$field]) && !in_array($asset[$field], $validNeeds, true)) {
+                    $this->error("assets[{$idx}].{$field} muss 'normal' oder 'high' sein.", 422);
+                    return;
+                }
+            }
+
+            $assetData            = $asset;
+            $assetData['category_name'] = $categoryName;
+            $assetId  = $this->repo->createAsset($domainId, $assetData);
+            $created[] = $assetId;
+        }
+
+        AuditLogger::log('create', 'assets', null, [
+            'category_name' => $categoryName,
+            'count'         => count($created),
+            'ids'           => $created,
+        ]);
+
+        $this->json(['created' => count($created), 'asset_ids' => $created], 201);
     }
 
     // ── GET /api/domains/{id}/processes ───────────────────────────────────────

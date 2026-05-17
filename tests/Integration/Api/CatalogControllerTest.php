@@ -132,6 +132,24 @@ class CatalogControllerTest extends IntegrationTestCase
         $this->assertFailure($response);
     }
 
+    public function test_import_rejects_untrusted_url_sources(): void
+    {
+        $this->loginAs('isb');
+
+        $response = $this->callController(
+            CatalogController::class,
+            'import',
+            [
+                'source' => 'url',
+                'url'    => 'https://example.com/catalog.json',
+            ],
+            httpMethod: 'POST'
+        );
+
+        $this->assertFailure($response);
+        $this->assertStringContainsString('vertrauenswürdige Katalogquelle', $response['error']);
+    }
+
     public function test_import_persists_catalog_in_db(): void
     {
         $this->loginAs('isb');

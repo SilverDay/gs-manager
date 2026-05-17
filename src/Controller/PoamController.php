@@ -146,9 +146,15 @@ class PoamController extends BaseController
         }
 
         $fields = array_intersect_key($body, array_flip([
-            'title', 'description', 'priority', 'status',
-            'responsible_user_id', 'deadline', 'completion_date',
-            'deviation_justification', 'milestones_json',
+            'title',
+            'description',
+            'priority',
+            'status',
+            'responsible_user_id',
+            'deadline',
+            'completion_date',
+            'deviation_justification',
+            'milestones_json',
         ]));
 
         $updated = $this->repo->update($itemId, $tenantId, $fields, $this->userId());
@@ -157,9 +163,16 @@ class PoamController extends BaseController
             return;
         }
 
-        $trackFields = ['title', 'description', 'priority', 'status',
-                        'responsible_user_id', 'deadline', 'completion_date',
-                        'deviation_justification'];
+        $trackFields = [
+            'title',
+            'description',
+            'priority',
+            'status',
+            'responsible_user_id',
+            'deadline',
+            'completion_date',
+            'deviation_justification'
+        ];
         $changes     = AuditLogger::diff($existing, $fields, $trackFields);
         AuditLogger::log('poam.item.update', 'poam_items', $itemId, $changes);
 
@@ -228,10 +241,5 @@ class PoamController extends BaseController
         }
 
         return null;
-    }
-
-    private function safeFilename(string $name): string
-    {
-        return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $name) ?? 'export';
     }
 }

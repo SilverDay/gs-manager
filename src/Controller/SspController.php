@@ -76,6 +76,13 @@ class SspController extends BaseController
             return;
         }
 
+        // Reject oversized requests before reading the body (max 20 MB)
+        $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
+        if ($contentLength > 20 * 1024 * 1024) {
+            $this->error('SSP-Datei zu groß (max. 20 MB).', 413);
+            return;
+        }
+
         $raw = file_get_contents('php://input');
         if (empty($raw)) {
             // Fallback: check for file upload
@@ -86,6 +93,12 @@ class SspController extends BaseController
 
         if (empty($raw)) {
             $this->error('Kein SSP-JSON empfangen.', 422);
+            return;
+        }
+
+        // Post-read size guard (catches cases where Content-Length was absent)
+        if (strlen($raw) > 20 * 1024 * 1024) {
+            $this->error('SSP-Datei zu groß (max. 20 MB).', 413);
             return;
         }
 

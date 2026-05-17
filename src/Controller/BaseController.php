@@ -131,4 +131,13 @@ class BaseController
     {
         return $_SESSION['user_role'] ?? '';
     }
+
+    /**
+     * Sanitise a string for use as a filename.
+     * Replaces any character that is not alphanumeric, underscore, or hyphen with an underscore.
+     */
+    protected function safeFilename(string $name): string
+    {
+        return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $name) ?? 'export';
+    }
 }

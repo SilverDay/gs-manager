@@ -29,7 +29,8 @@ class AuthController extends BaseController
 
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("
-            SELECT id, tenant_id, email, password_hash, display_name, role, is_active, totp_enabled
+            SELECT id, tenant_id, email, password_hash, display_name, role, is_active, totp_enabled,
+                   totp_secret_enc, totp_last_used_step
             FROM users
             WHERE email = ?
             LIMIT 1
@@ -64,11 +65,16 @@ class AuthController extends BaseController
             }
             $encryptor = new FieldEncryptor();
             $secret    = $encryptor->decrypt($user['totp_secret_enc']);
-            if (!TotpService::verify($secret, $totpCode)) {
+            $lastStep  = $user['totp_last_used_step'] !== null ? (int) $user['totp_last_used_step'] : null;
+            $matchedStep = TotpService::verify($secret, $totpCode, 1, $lastStep);
+            if ($matchedStep === false) {
                 AuditLogger::log('login.totp_failed', 'users', (int) $user['id']);
                 $this->error('Ungültiger Zwei-Faktor-Code.', 401);
                 return;
             }
+            // Persist the matched step to prevent replay within the acceptance window
+            $pdo->prepare('UPDATE users SET totp_last_used_step = ? WHERE id = ?')
+                ->execute([$matchedStep, $user['id']]);
         }
 
         // Rehash if needed (bcrypt → argon2id migration)
@@ -80,6 +86,9 @@ class AuthController extends BaseController
 
         // Regenerate session ID on login (prevent fixation)
         session_regenerate_id(true);
+
+        // Rotate CSRF token on privilege elevation (prevent session-fixation via CSRF)
+        CsrfMiddleware::rotateToken();
 
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['tenant_id'] = (int) $user['tenant_id'];
@@ -254,14 +263,14 @@ class AuthController extends BaseController
             return;
         }
 
-        // Brute-force: count every presentation; invalidate after 5 total attempts
-        $attempts = (int) $tokenRow['attempt_count'] + 1;
-        if ($attempts >= 5) {
+        // Brute-force: allow up to 4 attempts (0–3); block on the 5th (count = 4)
+        if ((int) $tokenRow['attempt_count'] >= 4) {
             $pdo->prepare('DELETE FROM password_reset_tokens WHERE id = ?')->execute([$tokenRow['id']]);
             AuditLogger::log('password_reset.brute_force', 'users', (int) $tokenRow['user_id']);
             $this->error('Zu viele fehlgeschlagene Versuche. Bitte einen neuen Link anfordern.', 429);
             return;
         }
+        $attempts = (int) $tokenRow['attempt_count'] + 1;
         $pdo->prepare('UPDATE password_reset_tokens SET attempt_count = ? WHERE id = ?')
             ->execute([$attempts, $tokenRow['id']]);
 

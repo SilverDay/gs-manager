@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GsppManager\Service;
 
+use GsppManager\Config\AppConfig;
 use RuntimeException;
 
 /**
@@ -47,7 +48,8 @@ class MailService
 
         try {
             self::expect($socket, '220');
-            self::cmd($socket, "EHLO {$_SERVER['SERVER_NAME']}");
+            $hostname = AppConfig::get('APP_HOSTNAME', 'localhost');
+            self::cmd($socket, "EHLO {$hostname}");
             $ehloResp = self::read($socket);
 
             // STARTTLS upgrade
@@ -61,7 +63,7 @@ class MailService
                     throw new RuntimeException('TLS-Upgrade fehlgeschlagen.');
                 }
                 // Re-send EHLO after TLS
-                self::cmd($socket, "EHLO {$_SERVER['SERVER_NAME']}");
+                self::cmd($socket, "EHLO {$hostname}");
                 self::read($socket);
             }
 

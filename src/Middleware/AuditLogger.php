@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace GsppManager\Middleware;
 
+use GsppManager\Config\AppConfig;
 use GsppManager\Config\Database;
 
 class AuditLogger
@@ -44,9 +45,27 @@ class AuditLogger
             $entityType,
             $entityId,
             $changes !== null ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            self::resolveClientIp(),
             substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
         ]);
+    }
+
+    /**
+     * Resolve the real client IP.
+     * Trusts X-Forwarded-For only when TRUST_PROXY=true is set in the environment,
+     * to prevent IP spoofing on direct-Internet deployments.
+     */
+    private static function resolveClientIp(): ?string
+    {
+        $trustProxy = filter_var(AppConfig::get('TRUST_PROXY', 'false'), FILTER_VALIDATE_BOOLEAN);
+        if ($trustProxy && isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ips     = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $firstIp = trim($ips[0]);
+            if (filter_var($firstIp, FILTER_VALIDATE_IP)) {
+                return $firstIp;
+            }
+        }
+        return $_SERVER['REMOTE_ADDR'] ?? null;
     }
 
     /**

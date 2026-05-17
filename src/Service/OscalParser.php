@@ -26,7 +26,45 @@ class OscalParser
             throw new RuntimeException('Kein OSCAL-Katalog gefunden (fehlendes "catalog"-Schlüsselelement).');
         }
 
+        $this->validateSchema($data);
+
         return $data;
+    }
+
+    /**
+     * Validate that the decoded OSCAL data contains the required top-level fields.
+     * Checks OSCAL 1.1.3 catalog structure requirements.
+     *
+     * @throws RuntimeException if a required field is missing.
+     */
+    public function validateSchema(array $data): void
+    {
+        $catalog = $data['catalog'] ?? null;
+        if (!is_array($catalog)) {
+            throw new RuntimeException('Ungültiges OSCAL: "catalog" muss ein Objekt sein.');
+        }
+
+        if (empty($catalog['uuid'])) {
+            throw new RuntimeException('Ungültiges OSCAL: "catalog.uuid" fehlt.');
+        }
+
+        $metadata = $catalog['metadata'] ?? null;
+        if (!is_array($metadata)) {
+            throw new RuntimeException('Ungültiges OSCAL: "catalog.metadata" fehlt oder ist kein Objekt.');
+        }
+
+        if (empty($metadata['title'])) {
+            throw new RuntimeException('Ungültiges OSCAL: "catalog.metadata.title" fehlt.');
+        }
+
+        if (empty($metadata['oscal-version'])) {
+            throw new RuntimeException('Ungültiges OSCAL: "catalog.metadata.oscal-version" fehlt.');
+        }
+
+        // At least one of groups or controls must be present
+        if (empty($catalog['groups']) && empty($catalog['controls'])) {
+            throw new RuntimeException('Ungültiges OSCAL: "catalog" enthält weder "groups" noch "controls".');
+        }
     }
 
     /**
@@ -56,8 +94,9 @@ class OscalParser
     /**
      * Flatten all controls from all groups (recursively) into a single list.
      * Each item includes id, title, group_id, group_title, statement, and props.
+     * The returned array is keyed by control id for O(1) lookup.
      *
-     * @return array<int, array>
+     * @return array<string, array>
      */
     public function flattenControls(array $parsed): array
     {
@@ -70,15 +109,12 @@ class OscalParser
 
     /**
      * Find a single control by its OSCAL id within a parsed catalog.
+     * Uses O(1) map lookup.
      */
     public function findControl(array $parsed, string $controlId): ?array
     {
-        foreach ($this->flattenControls($parsed) as $control) {
-            if ($control['id'] === $controlId) {
-                return $control;
-            }
-        }
-        return null;
+        $controls = $this->flattenControls($parsed);
+        return $controls[$controlId] ?? null;
     }
 
     /**
@@ -124,7 +160,8 @@ class OscalParser
         array  &$result
     ): void {
         foreach ($group['controls'] ?? [] as $rawControl) {
-            $result[] = $this->buildControlEntry($rawControl, $groupId, $groupTitle);
+            $entry = $this->buildControlEntry($rawControl, $groupId, $groupTitle);
+            $result[$entry['id']] = $entry;
         }
 
         // OSCAL groups may contain nested groups

@@ -50,8 +50,9 @@ class OscalExporter
             throw new RuntimeException("Informationsverbund {$domainId} nicht gefunden.");
         }
 
-        $impls = $this->implRepo->findAllByDomain($domainId, $tenantId);
-        $now   = gmdate('Y-m-d\TH:i:s\Z');
+        $impls  = $this->implRepo->findAllByDomain($domainId, $tenantId);
+        $assets = $this->domainRepo->findAssets($domainId);
+        $now    = gmdate('Y-m-d\TH:i:s\Z');
         $uuid  = $this->newUuid();
 
         $implementedRequirements = [];
@@ -127,7 +128,7 @@ class OscalExporter
                 'system-characteristics' => [
                     'system-name'             => $domain['name'],
                     'description'             => $domain['description'] ?? '',
-                    'security-sensitivity-level' => 'moderate',
+                    'security-sensitivity-level' => $this->deriveSecurityLevel($assets),
                     'system-information'      => [
                         'information-types' => [
                             [
@@ -137,11 +138,7 @@ class OscalExporter
                             ],
                         ],
                     ],
-                    'security-impact-level' => [
-                        'security-objective-confidentiality' => 'moderate',
-                        'security-objective-integrity'       => 'moderate',
-                        'security-objective-availability'    => 'moderate',
-                    ],
+                    'security-impact-level' => $this->deriveImpactLevel($assets),
                     'status'            => ['state' => 'operational'],
                     'authorization-boundary' => [
                         'description' => $metadata['scope'] ?? $domain['name'],
@@ -610,5 +607,50 @@ class OscalExporter
         $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
         $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
+    /**
+     * Derive the OSCAL security-sensitivity-level from the set of domain assets.
+     * Returns 'high' if any asset has a high protection need; otherwise 'moderate'.
+     *
+     * @param array<int, array> $assets Rows from domain_assets.
+     */
+    private function deriveSecurityLevel(array $assets): string
+    {
+        foreach ($assets as $asset) {
+            foreach (['protection_need_c', 'protection_need_i', 'protection_need_a'] as $field) {
+                if (isset($asset[$field]) && strtolower((string) $asset[$field]) === 'high') {
+                    return 'high';
+                }
+            }
+        }
+        return 'moderate';
+    }
+
+    /**
+     * Build the OSCAL security-impact-level sub-object, mapping per-dimension protection needs.
+     *
+     * @param array<int, array> $assets Rows from domain_assets.
+     * @return array{security-objective-confidentiality: string, security-objective-integrity: string, security-objective-availability: string}
+     */
+    private function deriveImpactLevel(array $assets): array
+    {
+        $maxLevel = ['c' => 'low', 'i' => 'low', 'a' => 'low'];
+        $rank     = ['low' => 0, 'normal' => 1, 'moderate' => 1, 'high' => 2];
+
+        foreach ($assets as $asset) {
+            foreach (['c' => 'protection_need_c', 'i' => 'protection_need_i', 'a' => 'protection_need_a'] as $dim => $field) {
+                $val = strtolower((string) ($asset[$field] ?? 'low'));
+                if (($rank[$val] ?? 0) > ($rank[$maxLevel[$dim]] ?? 0)) {
+                    $maxLevel[$dim] = $val === 'normal' ? 'moderate' : $val;
+                }
+            }
+        }
+
+        return [
+            'security-objective-confidentiality' => $maxLevel['c'],
+            'security-objective-integrity'       => $maxLevel['i'],
+            'security-objective-availability'    => $maxLevel['a'],
+        ];
     }
 }

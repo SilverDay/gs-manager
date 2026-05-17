@@ -81,7 +81,9 @@ class DashboardController extends BaseController
                 'poam_open'             => (int) $row['poam_open'],
                 'poam_overdue'          => $poamOverdue,
                 'compliance_status'     => $this->calcComplianceStatus(
-                    $implTotal, $implImplemented, $poamOverdue
+                    $implTotal,
+                    $implImplemented,
+                    $poamOverdue
                 ),
             ];
         }, $rows);
@@ -192,6 +194,112 @@ class DashboardController extends BaseController
         usort($items, fn($a, $b) => strcmp($a['event_date'], $b['event_date']));
 
         $this->json(['items' => array_slice($items, 0, 20)]);
+    }
+
+    /**
+     * GET /api/domains/{id}/dashboard
+     * Per-domain compliance KPIs: implementation status, risks, and POA&M summary.
+     */
+    public function domainKpis(array $params): void
+    {
+        $domainId = (int) ($params['id'] ?? 0);
+        $tenantId = $this->tenantId();
+        $pdo      = Database::getConnection();
+        $today    = Clock::today();
+
+        // Verify domain ownership
+        $chk = $pdo->prepare('SELECT id, name, isms_type FROM information_domains WHERE id = ? AND tenant_id = ?');
+        $chk->execute([$domainId, $tenantId]);
+        $domain = $chk->fetch(\PDO::FETCH_ASSOC);
+        if ($domain === false) {
+            $this->error('Informationsverbund nicht gefunden.', 404);
+            return;
+        }
+
+        // Implementation progress
+        $implStmt = $pdo->prepare("
+            SELECT
+                COUNT(*)                                        AS total,
+                COALESCE(SUM(i.status = 'implemented'), 0)      AS implemented,
+                COALESCE(SUM(i.status = 'partial'), 0)          AS partial,
+                COALESCE(SUM(i.status = 'planned'), 0)          AS planned,
+                COALESCE(SUM(i.status = 'not_started'), 0)      AS not_started,
+                COALESCE(SUM(i.status = 'not_applicable'), 0)   AS not_applicable,
+                COALESCE(AVG(i.maturity_level), 0)              AS avg_maturity
+            FROM implementations i
+            JOIN scoped_controls sc ON sc.id = i.scoped_control_id
+            WHERE sc.domain_id = ?
+        ");
+        $implStmt->execute([$domainId]);
+        $impl = $implStmt->fetch(\PDO::FETCH_ASSOC);
+
+        $implTotal       = (int) $impl['total'];
+        $implImplemented = (int) $impl['implemented'];
+
+        // Risk summary
+        $riskStmt = $pdo->prepare("
+            SELECT
+                COUNT(*)                                    AS total,
+                COALESCE(SUM(status = 'open'), 0)           AS open,
+                COALESCE(SUM(status = 'accepted'), 0)       AS accepted,
+                COALESCE(SUM(status = 'mitigated'), 0)      AS mitigated,
+                COALESCE(SUM(severity = 'critical'), 0)     AS critical,
+                COALESCE(SUM(severity = 'high'), 0)         AS high
+            FROM risks
+            WHERE domain_id = ?
+        ");
+        $riskStmt->execute([$domainId]);
+        $risks = $riskStmt->fetch(\PDO::FETCH_ASSOC);
+
+        // POA&M summary
+        $poamStmt = $pdo->prepare("
+            SELECT
+                COUNT(*)                                                                           AS total,
+                COALESCE(SUM(status NOT IN ('completed','verified','accepted')), 0)                AS open,
+                COALESCE(SUM(
+                    status NOT IN ('completed','verified','accepted')
+                    AND deadline IS NOT NULL
+                    AND deadline < ?
+                ), 0)                                                                              AS overdue
+            FROM poam_items
+            WHERE domain_id = ?
+        ");
+        $poamStmt->execute([$today, $domainId]);
+        $poam = $poamStmt->fetch(\PDO::FETCH_ASSOC);
+
+        $poamOverdue = (int) $poam['overdue'];
+
+        $this->json([
+            'domain_id'          => (int) $domain['id'],
+            'domain_name'        => $domain['name'],
+            'isms_type'          => $domain['isms_type'],
+            'compliance_status'  => $this->calcComplianceStatus($implTotal, $implImplemented, $poamOverdue),
+            'impl_progress'      => [
+                'total'          => $implTotal,
+                'implemented'    => $implImplemented,
+                'partial'        => (int) $impl['partial'],
+                'planned'        => (int) $impl['planned'],
+                'not_started'    => (int) $impl['not_started'],
+                'not_applicable' => (int) $impl['not_applicable'],
+                'avg_maturity'   => round((float) $impl['avg_maturity'], 2),
+                'percent'        => $implTotal > 0
+                    ? round($implImplemented / $implTotal * 100, 1)
+                    : 0.0,
+            ],
+            'risks'              => [
+                'total'    => (int) $risks['total'],
+                'open'     => (int) $risks['open'],
+                'accepted' => (int) $risks['accepted'],
+                'mitigated' => (int) $risks['mitigated'],
+                'critical' => (int) $risks['critical'],
+                'high'     => (int) $risks['high'],
+            ],
+            'poam'               => [
+                'total'   => (int) $poam['total'],
+                'open'    => (int) $poam['open'],
+                'overdue' => $poamOverdue,
+            ],
+        ]);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────

@@ -16,12 +16,12 @@ class AiControllerTest extends IntegrationTestCase
     {
         parent::setUp();
         $this->stubClient = new InMemoryAiClient('KI-Antwort (Test-Stub)');
-        AiController::$testClientOverride = $this->stubClient;
+        AiController::setTestClient($this->stubClient);
     }
 
     protected function tearDown(): void
     {
-        AiController::$testClientOverride = null;
+        AiController::setTestClient(null);
         parent::tearDown();
     }
 

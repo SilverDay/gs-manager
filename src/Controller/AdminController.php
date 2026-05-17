@@ -162,9 +162,10 @@ class AdminController extends BaseController
         $body   = $this->requestBody();
         $pdo    = Database::getConnection();
 
-        $stmt = $pdo->prepare('SELECT id FROM users WHERE id = ? AND tenant_id = ?');
+        $stmt = $pdo->prepare('SELECT id, display_name, role, is_active FROM users WHERE id = ? AND tenant_id = ?');
         $stmt->execute([$userId, $this->tenantId()]);
-        if ($stmt->fetch() === false) {
+        $oldUser = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if ($oldUser === false) {
             $this->error('Benutzer nicht gefunden.', 404);
             return;
         }
@@ -202,7 +203,14 @@ class AdminController extends BaseController
         $pdo->prepare('UPDATE users SET ' . implode(', ', $fields) . ' WHERE id = ? AND tenant_id = ?')
             ->execute($binds);
 
-        AuditLogger::log('admin.user_updated', 'users', $userId, $body);
+        // Build new state from the incoming body for diff
+        $newUser = [
+            'display_name' => isset($body['display_name']) ? trim($body['display_name']) : $oldUser['display_name'],
+            'role'         => $body['role'] ?? $oldUser['role'],
+            'is_active'    => isset($body['is_active']) ? ((bool) $body['is_active'] ? 1 : 0) : $oldUser['is_active'],
+        ];
+        $diff = AuditLogger::diff($oldUser, $newUser, ['display_name', 'role', 'is_active']);
+        AuditLogger::log('admin.user_updated', 'users', $userId, $diff);
 
         $this->json(['message' => 'Benutzer aktualisiert.']);
     }
@@ -294,9 +302,16 @@ class AdminController extends BaseController
         $existing = json_decode($row['settings_json'] ?? '{}', true) ?? [];
 
         $allowed = [
-            'language', 'timezone', 'session_timeout',
-            'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass',
-            'smtp_from', 'smtp_from_name', 'smtp_encryption',
+            'language',
+            'timezone',
+            'session_timeout',
+            'smtp_host',
+            'smtp_port',
+            'smtp_user',
+            'smtp_pass',
+            'smtp_from',
+            'smtp_from_name',
+            'smtp_encryption',
             'ai_provider',
         ];
 
