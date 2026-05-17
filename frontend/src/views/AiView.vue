@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/useAuthStore.js'
-import { useApiClient } from '@/composables/useApi.js'
+import { useApiClient, useApi } from '@/composables/useApi.js'
 
 const auth = useAuthStore()
 const api  = useApiClient()
@@ -95,6 +95,46 @@ const responses  = ref({})    // { [tabId]: { text, cached, provider, model } }
 const loading    = ref({})    // { [tabId]: bool }
 const errors     = ref({})    // { [tabId]: string }
 
+// ─── Control selector ───────────────────────────────────────────
+const domains        = ref([])
+const selectorDomain = ref('')
+const domainControls = ref([])
+const selectorControl = ref('')
+const loadingControls = ref(false)
+
+const CONTROL_TABS = new Set(['explain', 'suggest', 'risk', 'maturity', 'map2023'])
+const activeTabHasSelector = computed(() => CONTROL_TABS.has(activeTab.value))
+
+onMounted(async () => {
+  const { execute } = useApi('/api/domains')
+  const res = await execute()
+  if (res?.success) domains.value = res.data.domains ?? []
+})
+
+watch(selectorDomain, async (id) => {
+  selectorControl.value = ''
+  domainControls.value  = []
+  if (!id) return
+  loadingControls.value = true
+  const { execute } = useApi(`/api/domains/${id}/scoped-controls?per_page=200`)
+  const res = await execute()
+  loadingControls.value = false
+  if (res?.success) domainControls.value = res.data.items ?? []
+})
+
+function applyControlSelector() {
+  const ctrl = domainControls.value.find(c => c.control_id_str === selectorControl.value)
+  if (!ctrl) return
+  const tab    = activeTab.value
+  const tabObj = TABS.find(t => t.id === tab)
+  if (!inputs.value[tab]) inputs.value[tab] = {}
+  inputs.value[tab].control_id    = ctrl.control_id_str
+  inputs.value[tab].control_title = ctrl.title
+  if (tabObj?.fields.some(f => f.key === 'description')) {
+    inputs.value[tab].description = ctrl.description ?? ''
+  }
+}
+
 function tabInputs(tabId) {
   if (!inputs.value[tabId]) inputs.value[tabId] = {}
   return inputs.value[tabId]
@@ -171,6 +211,31 @@ async function submit() {
         class="max-w-3xl"
       >
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+
+          <!-- Control quick-select (only for control-based tabs) -->
+          <div v-if="activeTabHasSelector && domains.length > 0"
+               class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Schnellauswahl aus Informationsverbund</p>
+            <div class="flex gap-2 flex-wrap">
+              <select v-model="selectorDomain"
+                      class="flex-1 min-w-0 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white">
+                <option value="">Verbund wählen …</option>
+                <option v-for="d in domains" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
+              </select>
+              <select v-model="selectorControl" :disabled="!selectorDomain || loadingControls"
+                      class="flex-1 min-w-0 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white disabled:opacity-50">
+                <option value="">{{ loadingControls ? 'Lade …' : 'Anforderung wählen …' }}</option>
+                <option v-for="c in domainControls" :key="c.control_id_str" :value="c.control_id_str">
+                  {{ c.control_id_str }} – {{ c.title }}
+                </option>
+              </select>
+              <button :disabled="!selectorControl"
+                      @click="applyControlSelector"
+                      class="shrink-0 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 transition-colors">
+                Felder befüllen
+              </button>
+            </div>
+          </div>
 
           <!-- Input fields -->
           <div

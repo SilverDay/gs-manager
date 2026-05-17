@@ -39,7 +39,6 @@ class ImplementationController extends BaseController
         // Ensure all scoped controls have implementation rows
         $this->repo->ensureAllExist($domainId, $tenantId);
 
-        $paging  = $this->pagination();
         $filters = [
             'status'   => $this->queryParam('status')   ?? '',
             'asset_id' => $this->queryParam('asset_id') ?? '',
@@ -110,15 +109,24 @@ class ImplementationController extends BaseController
             'parameters_json',
         ]));
 
-        $updated = $this->repo->update($implId, $tenantId, $fields, $this->userId());
-        if (!$updated) {
-            $this->error('Keine Änderung gespeichert.', 422);
+        if (empty($fields)) {
+            $this->error('Keine gültigen Felder zum Speichern.', 422);
             return;
         }
 
-        $trackFields = ['status', 'maturity_level', 'description', 'responsible_user_id', 'target_date', 'completion_date'];
-        $changes     = AuditLogger::diff($existing, $fields, $trackFields);
-        AuditLogger::log('implementation.update', 'implementations', $implId, $changes);
+        $updated = $this->repo->update($implId, $tenantId, $fields, $this->userId());
+
+        // update() returns false when rowCount()==0, which happens when the submitted
+        // values are identical to the existing ones (no-op UPDATE). Since we already
+        // verified ownership via findById() above, this is not an error — just return
+        // the current state so the frontend's optimistic UI stays consistent.
+        if ($updated) {
+            $trackFields = ['status', 'maturity_level', 'description', 'responsible_user_id', 'target_date', 'completion_date'];
+            $changes     = AuditLogger::diff($existing, $fields, $trackFields);
+            if (!empty($changes)) {
+                AuditLogger::log('implementation.update', 'implementations', $implId, $changes);
+            }
+        }
 
         $fresh = $this->repo->findById($implId, $tenantId);
         $this->json(['implementation' => $fresh]);

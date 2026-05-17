@@ -523,14 +523,21 @@ onMounted(async () => {
             <div v-if="tailoringControl"
               class="w-96 flex-shrink-0 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
               <div class="flex items-start justify-between p-4 border-b border-gray-100">
-                <div>
+                <div class="min-w-0">
                   <span class="font-mono text-xs text-primary-700 font-semibold">{{ tailoringControl.control_id_str }}</span>
                   <h3 class="font-semibold text-gray-900 mt-0.5 leading-tight text-sm">{{ tailoringControl.title }}</h3>
                 </div>
-                <button @click="tailoringControl = null" class="text-gray-400 hover:text-gray-600 ml-2">✕</button>
+                <button @click="tailoringControl = null" class="text-gray-400 hover:text-gray-600 ml-2 shrink-0">✕</button>
               </div>
 
               <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+                <!-- Base requirement text -->
+                <div v-if="tailoringControl.description">
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Basisanforderung</p>
+                  <p class="text-xs text-gray-600 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 whitespace-pre-line">{{ tailoringControl.description }}</p>
+                </div>
+
                 <!-- Parameters -->
                 <div v-if="Object.keys(tailoringForm.parameters).length > 0">
                   <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Parameter</p>
@@ -541,15 +548,39 @@ onMounted(async () => {
                   </div>
                 </div>
 
-                <!-- Prefix / Suffix -->
+                <!-- Prefix / Suffix with live preview -->
                 <div>
                   <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Ergänzungen</p>
-                  <label class="block text-xs text-gray-500 mb-1">Präfix</label>
-                  <textarea v-model="tailoringForm.prefix" rows="2" placeholder="Wird dem Anforderungstext vorangestellt …"
-                    class="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none mb-2" />
-                  <label class="block text-xs text-gray-500 mb-1">Suffix</label>
-                  <textarea v-model="tailoringForm.suffix" rows="2" placeholder="Wird dem Anforderungstext nachgestellt …"
-                    class="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+                  <div class="space-y-3">
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">
+                        Präambel
+                        <span class="font-normal text-gray-400 ml-1">— wird dem Anforderungstext vorangestellt</span>
+                      </label>
+                      <textarea v-model="tailoringForm.prefix" rows="2"
+                        placeholder="z.B. Zusätzlich zu den Basisanforderungen gilt: …"
+                        class="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">
+                        Ergänzung
+                        <span class="font-normal text-gray-400 ml-1">— wird dem Anforderungstext nachgestellt</span>
+                      </label>
+                      <textarea v-model="tailoringForm.suffix" rows="2"
+                        placeholder="z.B. Dies gilt insbesondere für …"
+                        class="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+                    </div>
+
+                    <!-- Live preview -->
+                    <div v-if="tailoringForm.prefix || tailoringForm.suffix">
+                      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Vorschau</p>
+                      <div class="text-xs text-gray-700 leading-relaxed bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 space-y-1.5">
+                        <p v-if="tailoringForm.prefix" class="text-blue-700 italic">{{ tailoringForm.prefix }}</p>
+                        <p v-if="tailoringControl.description" class="text-gray-600">{{ tailoringControl.description }}</p>
+                        <p v-if="tailoringForm.suffix" class="text-blue-700 italic">{{ tailoringForm.suffix }}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Exclusion -->
@@ -558,10 +589,11 @@ onMounted(async () => {
                     <input type="checkbox" v-model="tailoringForm.excluded" class="rounded" />
                     <span class="text-sm text-gray-700 font-medium">Anforderung ausschließen</span>
                   </label>
+                  <p class="text-xs text-gray-400 mt-1 ml-5">Ausgeschlossene Anforderungen erscheinen nicht im Grundschutzcheck.</p>
                   <div v-if="tailoringForm.excluded" class="mt-2">
-                    <label class="block text-xs text-gray-500 mb-1">Begründung <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Begründung <span class="text-red-500">*</span></label>
                     <textarea v-model="tailoringForm.exclusion_reason" rows="3"
-                      placeholder="Warum ist diese Anforderung nicht anwendbar?"
+                      placeholder="Warum ist diese Anforderung für Ihren Informationsverbund nicht anwendbar?"
                       class="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
                   </div>
                 </div>

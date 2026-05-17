@@ -14,10 +14,14 @@ const currentDomainId = computed(() => {
 })
 
 const navigation = [
-  { name: 'Dashboard',           path: '/',              icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
-  { name: 'Kataloge',            path: '/kataloge',      icon: '📚', roles: ['admin','isb'] },
-  { name: 'Informationsverbund', path: '/verbund',       icon: '🏢', roles: ['admin','isb','fachverantwortlich'] },
-  { name: 'KI-Assistent',        path: '/ki-assistent',  icon: '🤖', roles: ['admin','isb','fachverantwortlich','auditor'] },
+  { name: 'Dashboard',           path: '/',             icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
+  { name: 'Kataloge',            path: '/kataloge',     icon: '📚', roles: ['admin','isb'] },
+  { name: 'Informationsverbund', path: '/verbund',      icon: '🏢', roles: ['admin','isb','fachverantwortlich'] },
+]
+
+// Rendered after domain sub-links so KI-Assistent appears below them in the sidebar
+const toolsNavigation = [
+  { name: 'KI-Assistent', path: '/ki-assistent', icon: '🤖', roles: ['admin','isb','fachverantwortlich','auditor'] },
 ]
 
 const bottomNavigation = [
@@ -27,6 +31,10 @@ const bottomNavigation = [
 
 function visibleItems() {
   return navigation.filter(item => item.roles.includes(auth.role))
+}
+
+function visibleToolsItems() {
+  return toolsNavigation.filter(item => item.roles.includes(auth.role))
 }
 
 function visibleBottomItems() {
@@ -112,6 +120,20 @@ async function handleLogout() {
       >
         <span class="mr-2 text-base">📋</span>
         Maßnahmen
+      </router-link>
+
+      <!-- Tools nav (KI-Assistent) — rendered after domain sub-links -->
+      <router-link
+        v-for="item in visibleToolsItems()"
+        :key="item.path"
+        :to="item.path"
+        class="flex items-center px-3 py-2.5 text-sm rounded-lg transition-colors"
+        :class="$route.path === item.path || $route.path.startsWith(item.path)
+          ? 'bg-primary-700 text-white'
+          : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+      >
+        <span class="mr-3 text-lg">{{ item.icon }}</span>
+        {{ item.name }}
       </router-link>
     </nav>
 
