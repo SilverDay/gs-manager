@@ -19,6 +19,7 @@ use GsppManager\Controller\DashboardController;
 use GsppManager\Controller\DomainController;
 use GsppManager\Controller\ImplementationController;
 use GsppManager\Controller\ProfileController;
+use GsppManager\Controller\RiskController;
 use GsppManager\Controller\SspController;
 
 // Register middleware
@@ -85,7 +86,12 @@ $router->post('/api/domains/{id}/ssp/import',           SspController::class,   
 $router->post('/api/domains/{id}/generate-ssp',         SspController::class,            'generateSsp',    ['auth', 'csrf']);
 
 // ─── Risks ──────────────────────────────────────────────────────
-// TODO: Phase 4 implementation
+$router->get('/api/domains/{id}/risks',                     RiskController::class, 'list',          ['auth']);
+$router->post('/api/domains/{id}/risks',                    RiskController::class, 'create',        ['auth', 'csrf']);
+$router->put('/api/risks/{riskId}',                         RiskController::class, 'update',        ['auth', 'csrf']);
+$router->post('/api/risks/{riskId}/controls',               RiskController::class, 'linkControl',   ['auth', 'csrf']);
+$router->delete('/api/risks/{riskId}/controls/{controlId}', RiskController::class, 'unlinkControl', ['auth', 'csrf']);
+$router->get('/api/domains/{id}/dashboard/risks',           RiskController::class, 'heatmap',       ['auth']);
 
 // ─── Assessments (Audit) ────────────────────────────────────────
 // TODO: Phase 5 implementation

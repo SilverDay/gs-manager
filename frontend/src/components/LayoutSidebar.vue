@@ -73,6 +73,19 @@ async function handleLogout() {
         <span class="mr-2 text-base">✅</span>
         Grundschutzcheck
       </router-link>
+
+      <!-- Risiken sub-link: only shown when inside a domain -->
+      <router-link
+        v-if="currentDomainId"
+        :to="`/verbund/${currentDomainId}/risiken`"
+        class="flex items-center pl-9 pr-3 py-2 text-sm rounded-lg transition-colors"
+        :class="$route.path.endsWith('/risiken')
+          ? 'bg-primary-700 text-white'
+          : 'text-gray-400 hover:bg-gray-800 hover:text-white'"
+      >
+        <span class="mr-2 text-base">⚠️</span>
+        Risiken
+      </router-link>
     </nav>
 
     <!-- Bottom nav (Profile, Admin) -->

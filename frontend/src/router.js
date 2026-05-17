@@ -49,6 +49,11 @@ const routes = [
     component: () => import('@/views/SspEditorView.vue'),
   },
   {
+    path: '/verbund/:id/risiken',
+    name: 'Risks',
+    component: () => import('@/views/RiskView.vue'),
+  },
+  {
     path: '/verbund/:id/audit',
     name: 'Audit',
     component: () => import('@/views/AuditView.vue'),
