@@ -251,6 +251,15 @@ class OscalExporter
         return $updated;
     }
 
+    /** Maps DB POA&M status values to OSCAL state values */
+    private const POAM_STATUS_TO_OSCAL = [
+        'open'        => 'open',
+        'in_progress' => 'in-progress',
+        'completed'   => 'completed',
+        'verified'    => 'completed',
+        'accepted'    => 'risk-accepted',
+    ];
+
     /** Maps DB finding result values to OSCAL state values */
     private const RESULT_TO_OSCAL = [
         'satisfied'     => 'satisfied',
@@ -487,6 +496,93 @@ class OscalExporter
                     'href' => 'urn:gspp-manager:plan:' . $planId . ':ap',
                 ],
                 'results' => [$result],
+            ],
+        ];
+    }
+
+    /**
+     * Build a full OSCAL 1.1.3 Plan of Action and Milestones JSON structure.
+     *
+     * @throws RuntimeException if the domain is not found.
+     */
+    public function exportPoam(int $domainId, int $tenantId): array
+    {
+        $domain = $this->domainRepo->findByIdAndTenant($domainId, $tenantId);
+        if ($domain === null) {
+            throw new RuntimeException("Informationsverbund {$domainId} nicht gefunden.");
+        }
+
+        $pdo  = Database::getConnection();
+        $stmt = $pdo->prepare("
+            SELECT
+                pi.*,
+                sc.control_id_str
+            FROM poam_items pi
+            JOIN information_domains d ON d.id = pi.domain_id AND d.tenant_id = ?
+            LEFT JOIN scoped_controls sc ON sc.id = pi.scoped_control_id
+            WHERE pi.domain_id = ?
+            ORDER BY FIELD(pi.priority, 'high', 'medium', 'low'), pi.created_at
+        ");
+        $stmt->execute([$tenantId, $domainId]);
+        $dbItems = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $now      = gmdate('Y-m-d\TH:i:s\Z');
+        $oscalItems = [];
+
+        foreach ($dbItems as $item) {
+            $oscalState = self::POAM_STATUS_TO_OSCAL[$item['status']] ?? 'open';
+
+            $oscalItem = [
+                'uuid'        => $this->newUuid(),
+                'title'       => $item['title'],
+                'description' => $item['description'] ?? '',
+                'status'      => ['state' => $oscalState],
+            ];
+
+            if ($oscalState === 'completed' && $item['status'] === 'verified') {
+                $oscalItem['status']['remarks'] = 'Verifiziert';
+            }
+
+            if (!empty($item['deviation_justification'])) {
+                $oscalItem['remarks'] = $item['deviation_justification'];
+            } elseif (!empty($item['milestones_json'])) {
+                $milestones = json_decode($item['milestones_json'], true);
+                if (is_array($milestones) && !empty($milestones)) {
+                    $phases = array_map(
+                        fn($m) => ($m['name'] ?? '') . ' (' . ($m['target_date'] ?? '') . ')',
+                        $milestones
+                    );
+                    $oscalItem['remarks'] = 'Meilensteine: ' . implode('; ', $phases);
+                }
+            }
+
+            if (!empty($item['finding_id'])) {
+                $oscalItem['related-findings'] = [
+                    ['finding-uuid' => 'urn:gspp-manager:finding:' . $item['finding_id']],
+                ];
+            }
+
+            if (!empty($item['deadline'])) {
+                $oscalItem['target-completion-date'] = $item['deadline'];
+            }
+
+            $oscalItems[] = $oscalItem;
+        }
+
+        return [
+            'plan-of-action-and-milestones' => [
+                'uuid'     => $this->newUuid(),
+                'metadata' => [
+                    'title'         => $domain['name'] . ' — Plan of Action and Milestones',
+                    'last-modified' => $now,
+                    'version'       => '1.0.0',
+                    'oscal-version' => '1.1.3',
+                    'remarks'       => 'Generiert durch GS++ KMU Compliance Manager',
+                ],
+                'import-ar'  => [
+                    'href' => 'urn:gspp-manager:domain:' . $domainId . ':ar',
+                ],
+                'poam-items' => $oscalItems,
             ],
         ];
     }

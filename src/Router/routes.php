@@ -106,7 +106,12 @@ $router->get('/api/assessments/{planId}/export/ap',         AssessmentController
 $router->get('/api/assessments/{planId}/export/ar',         AssessmentController::class, 'exportAr',      ['auth']);
 
 // ─── POA&M (Sanierung) ─────────────────────────────────────────
-// TODO: Phase 6 implementation
+use GsppManager\Controller\PoamController;
+
+$router->post('/api/domains/{id}/poam/generate', PoamController::class, 'generate', ['auth', 'csrf']);
+$router->get('/api/domains/{id}/poam',           PoamController::class, 'list',     ['auth']);
+$router->put('/api/poam/{itemId}',               PoamController::class, 'update',   ['auth', 'csrf']);
+$router->get('/api/domains/{id}/poam/export',    PoamController::class, 'export',   ['auth']);
 
 // ─── AI Assistant ───────────────────────────────────────────────
 // TODO: Phase 7 implementation
