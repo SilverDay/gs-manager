@@ -251,6 +251,263 @@ class OscalExporter
         return $updated;
     }
 
+    /** Maps DB finding result values to OSCAL state values */
+    private const RESULT_TO_OSCAL = [
+        'satisfied'     => 'satisfied',
+        'not_satisfied' => 'not-satisfied',
+        'partial'       => 'not-satisfied',
+        'not_assessed'  => 'not-reviewed',
+    ];
+
+    /**
+     * Build a full OSCAL 1.1.3 Assessment Plan JSON structure.
+     *
+     * @throws RuntimeException if the plan is not found.
+     */
+    public function exportAp(int $planId, int $tenantId): array
+    {
+        $pdo = Database::getConnection();
+
+        $planStmt = $pdo->prepare("
+            SELECT ap.*, d.name AS domain_name, d.id AS domain_id
+            FROM assessment_plans ap
+            JOIN information_domains d ON d.id = ap.domain_id AND d.tenant_id = ?
+            WHERE ap.id = ?
+        ");
+        $planStmt->execute([$tenantId, $planId]);
+        $plan = $planStmt->fetch(\PDO::FETCH_ASSOC);
+        if ($plan === false) {
+            throw new RuntimeException("Assessment Plan {$planId} nicht gefunden.");
+        }
+
+        $ctrlStmt = $pdo->prepare("
+            SELECT control_id_str FROM scoped_controls
+            WHERE domain_id = ?
+            ORDER BY control_id_str
+        ");
+        $ctrlStmt->execute([(int) $plan['domain_id']]);
+        $controlIds = $ctrlStmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        $now         = gmdate('Y-m-d\TH:i:s\Z');
+        $partyUuid   = $this->newUuid();
+        $assessorOrg = $plan['assessor_org'] ?? ($plan['assessor_name'] ?? 'Unbekannte Organisation');
+
+        $includeControls = array_map(
+            fn(string $id) => ['control-id' => $id],
+            $controlIds
+        );
+
+        $task = [
+            'uuid'                  => $this->newUuid(),
+            'type'                  => 'action',
+            'title'                 => $plan['title'],
+            'associated-activities' => [],
+        ];
+
+        if (!empty($plan['period_start']) || !empty($plan['period_end'])) {
+            $task['timing'] = [
+                'within-date-range' => array_filter([
+                    'start' => $plan['period_start'] ?? null,
+                    'end'   => $plan['period_end']   ?? null,
+                ]),
+            ];
+        }
+
+        return [
+            'assessment-plan' => [
+                'uuid'     => $this->newUuid(),
+                'metadata' => [
+                    'title'         => $plan['title'] . ' — Assessment Plan',
+                    'last-modified' => $now,
+                    'version'       => '1.0.0',
+                    'oscal-version' => '1.1.3',
+                    'parties'       => [
+                        [
+                            'uuid' => $partyUuid,
+                            'type' => 'organization',
+                            'name' => $assessorOrg,
+                        ],
+                    ],
+                    'responsible-parties' => [
+                        [
+                            'role-id'     => 'assessor',
+                            'party-uuids' => [$partyUuid],
+                        ],
+                    ],
+                ],
+                'import-ssp' => [
+                    'href' => 'urn:gspp-manager:domain:' . $plan['domain_id'] . ':ssp',
+                ],
+                'reviewed-controls' => [
+                    'control-selections' => [
+                        ['include-controls' => $includeControls],
+                    ],
+                ],
+                'assessment-subjects' => [
+                    ['type' => 'component', 'include-all' => new \stdClass()],
+                ],
+                'tasks' => [$task],
+            ],
+        ];
+    }
+
+    /**
+     * Build a full OSCAL 1.1.3 Assessment Results JSON structure.
+     * Only includes findings where result != 'not_assessed'.
+     *
+     * @throws RuntimeException if the plan is not found.
+     */
+    public function exportAr(int $planId, int $tenantId): array
+    {
+        $pdo = Database::getConnection();
+
+        $planStmt = $pdo->prepare("
+            SELECT ap.*, d.name AS domain_name, d.id AS domain_id
+            FROM assessment_plans ap
+            JOIN information_domains d ON d.id = ap.domain_id AND d.tenant_id = ?
+            WHERE ap.id = ?
+        ");
+        $planStmt->execute([$tenantId, $planId]);
+        $plan = $planStmt->fetch(\PDO::FETCH_ASSOC);
+        if ($plan === false) {
+            throw new RuntimeException("Assessment Plan {$planId} nicht gefunden.");
+        }
+
+        $findingStmt = $pdo->prepare("
+            SELECT af.id, af.result, af.observation, af.risk_statement, af.method,
+                   sc.control_id_str, sc.title AS control_title
+            FROM assessment_findings af
+            JOIN scoped_controls sc ON sc.id = af.scoped_control_id
+            WHERE af.plan_id = ? AND af.result != 'not_assessed'
+            ORDER BY sc.control_id_str
+        ");
+        $findingStmt->execute([$planId]);
+        $dbFindings = $findingStmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $ctrlStmt = $pdo->prepare("
+            SELECT control_id_str FROM scoped_controls
+            WHERE domain_id = ?
+            ORDER BY control_id_str
+        ");
+        $ctrlStmt->execute([(int) $plan['domain_id']]);
+        $controlIds = $ctrlStmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        $now       = gmdate('Y-m-d\TH:i:s\Z');
+        $partyUuid = $this->newUuid();
+        $assessorOrg = $plan['assessor_org'] ?? ($plan['assessor_name'] ?? 'Unbekannte Organisation');
+
+        $includeControls = array_map(
+            fn(string $id) => ['control-id' => $id],
+            $controlIds
+        );
+
+        $observations = [];
+        $oscalFindings = [];
+
+        foreach ($dbFindings as $f) {
+            $obsUuid  = $this->newUuid();
+            $oscalState = self::RESULT_TO_OSCAL[$f['result']] ?? 'not-reviewed';
+
+            $observation = [
+                'uuid'        => $obsUuid,
+                'title'       => $f['control_id_str'] . ' — Beobachtung',
+                'description' => $f['observation'] ?? '',
+                'methods'     => $this->mapMethods($f['method'] ?? ''),
+            ];
+
+            if (!empty($f['risk_statement'])) {
+                $observation['remarks'] = $f['risk_statement'];
+            }
+
+            $observations[] = $observation;
+
+            $finding = [
+                'uuid'        => $this->newUuid(),
+                'title'       => $f['control_id_str'] . ' — ' . $f['result'],
+                'description' => $f['observation'] ?? '',
+                'target'      => [
+                    'type'      => 'statement-id',
+                    'target-id' => $f['control_id_str'] . '_smt',
+                    'status'    => ['state' => $oscalState],
+                ],
+                'related-observations' => [['observation-uuid' => $obsUuid]],
+            ];
+
+            if ($f['result'] === 'partial') {
+                $finding['target']['status']['remarks'] = 'Teilweise erfüllt';
+            }
+
+            $oscalFindings[] = $finding;
+        }
+
+        $result = [
+            'uuid'  => $this->newUuid(),
+            'title' => $plan['title'] . ' — Results',
+            'reviewed-controls' => [
+                'control-selections' => [
+                    ['include-controls' => $includeControls],
+                ],
+            ],
+            'findings' => $oscalFindings,
+        ];
+
+        if (!empty($plan['period_start'])) {
+            $result['start'] = $plan['period_start'];
+        }
+        if (!empty($plan['period_end'])) {
+            $result['end'] = $plan['period_end'];
+        }
+        if (!empty($observations)) {
+            $result['observations'] = $observations;
+        }
+
+        return [
+            'assessment-results' => [
+                'uuid'     => $this->newUuid(),
+                'metadata' => [
+                    'title'         => $plan['title'] . ' — Assessment Results',
+                    'last-modified' => $now,
+                    'version'       => '1.0.0',
+                    'oscal-version' => '1.1.3',
+                    'parties'       => [
+                        [
+                            'uuid' => $partyUuid,
+                            'type' => 'organization',
+                            'name' => $assessorOrg,
+                        ],
+                    ],
+                    'responsible-parties' => [
+                        [
+                            'role-id'     => 'assessor',
+                            'party-uuids' => [$partyUuid],
+                        ],
+                    ],
+                ],
+                'import-ap' => [
+                    'href' => 'urn:gspp-manager:plan:' . $planId . ':ap',
+                ],
+                'results' => [$result],
+            ],
+        ];
+    }
+
+    private function mapMethods(string $methodStr): array
+    {
+        $map = [
+            'examine'   => 'EXAMINE',
+            'interview' => 'INTERVIEW',
+            'test'      => 'TEST',
+        ];
+        $methods = [];
+        foreach (explode(',', $methodStr) as $m) {
+            $m = trim($m);
+            if (isset($map[$m])) {
+                $methods[] = $map[$m];
+            }
+        }
+        return $methods ?: ['EXAMINE'];
+    }
+
     private function newUuid(): string
     {
         $data    = random_bytes(16);

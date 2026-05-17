@@ -94,7 +94,16 @@ $router->delete('/api/risks/{riskId}/controls/{controlId}', RiskController::clas
 $router->get('/api/domains/{id}/dashboard/risks',           RiskController::class, 'heatmap',       ['auth']);
 
 // ─── Assessments (Audit) ────────────────────────────────────────
-// TODO: Phase 5 implementation
+use GsppManager\Controller\AssessmentController;
+
+$router->get('/api/domains/{id}/assessments',               AssessmentController::class, 'listPlans',     ['auth']);
+$router->post('/api/domains/{id}/assessments',              AssessmentController::class, 'createPlan',    ['auth', 'csrf']);
+$router->get('/api/assessments/{planId}',                   AssessmentController::class, 'showPlan',      ['auth']);
+$router->put('/api/assessments/{planId}',                   AssessmentController::class, 'updatePlan',    ['auth', 'csrf']);
+$router->get('/api/assessments/{planId}/findings',          AssessmentController::class, 'listFindings',  ['auth']);
+$router->put('/api/findings/{findingId}',                   AssessmentController::class, 'updateFinding', ['auth', 'csrf']);
+$router->get('/api/assessments/{planId}/export/ap',         AssessmentController::class, 'exportAp',      ['auth']);
+$router->get('/api/assessments/{planId}/export/ar',         AssessmentController::class, 'exportAr',      ['auth']);
 
 // ─── POA&M (Sanierung) ─────────────────────────────────────────
 // TODO: Phase 6 implementation
