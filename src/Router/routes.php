@@ -113,5 +113,16 @@ $router->get('/api/domains/{id}/poam',           PoamController::class, 'list', 
 $router->put('/api/poam/{itemId}',               PoamController::class, 'update',   ['auth', 'csrf']);
 $router->get('/api/domains/{id}/poam/export',    PoamController::class, 'export',   ['auth']);
 
+// ─── Dashboard timeline ─────────────────────────────────────────
+$router->get('/api/domains/{id}/dashboard/timeline', DashboardController::class, 'timeline', ['auth']);
+
 // ─── AI Assistant ───────────────────────────────────────────────
-// TODO: Phase 7 implementation
+use GsppManager\Controller\AiController;
+
+$router->post('/api/ai/explain',                AiController::class, 'explain',                ['auth', 'csrf']);
+$router->post('/api/ai/suggest-implementation', AiController::class, 'suggestImplementation',  ['auth', 'csrf']);
+$router->post('/api/ai/risk-analysis',          AiController::class, 'riskAnalysis',           ['auth', 'csrf']);
+$router->post('/api/ai/audit-finding',          AiController::class, 'auditFinding',           ['auth', 'csrf']);
+$router->post('/api/ai/remediation-plan',       AiController::class, 'remediationPlan',        ['auth', 'csrf']);
+$router->post('/api/ai/maturity-analysis',      AiController::class, 'maturityAnalysis',       ['auth', 'csrf']);
+$router->post('/api/ai/map-edition-2023',       AiController::class, 'mapEdition2023',         ['auth', 'csrf']);

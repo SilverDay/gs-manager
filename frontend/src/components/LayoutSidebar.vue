@@ -14,9 +14,10 @@ const currentDomainId = computed(() => {
 })
 
 const navigation = [
-  { name: 'Dashboard',           path: '/',         icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
-  { name: 'Kataloge',            path: '/kataloge', icon: '📚', roles: ['admin','isb'] },
-  { name: 'Informationsverbund', path: '/verbund',  icon: '🏢', roles: ['admin','isb','fachverantwortlich'] },
+  { name: 'Dashboard',           path: '/',              icon: '📊', roles: ['admin','isb','fachverantwortlich','auditor','management','readonly'] },
+  { name: 'Kataloge',            path: '/kataloge',      icon: '📚', roles: ['admin','isb'] },
+  { name: 'Informationsverbund', path: '/verbund',       icon: '🏢', roles: ['admin','isb','fachverantwortlich'] },
+  { name: 'KI-Assistent',        path: '/ki-assistent',  icon: '🤖', roles: ['admin','isb','fachverantwortlich','auditor'] },
 ]
 
 const bottomNavigation = [

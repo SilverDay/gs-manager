@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi.js'
 import { useAuthStore } from '@/stores/useAuthStore.js'
+import ComplianceTrafficLight from '@/components/ComplianceTrafficLight.vue'
 
 const auth   = useAuthStore()
 const router = useRouter()
@@ -168,6 +169,23 @@ const domains    = computed(() => dashboard.value?.domains ?? [])
             </div>
             <div class="text-xs text-gray-500 mt-1">Noch offen</div>
           </div>
+          <div
+            v-if="dashboard.poam_summary?.total > 0"
+            class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 text-center"
+          >
+            <div
+              class="text-2xl font-bold"
+              :class="dashboard.poam_summary.overdue > 0 ? 'text-red-600' : 'text-yellow-500'"
+            >
+              {{ dashboard.poam_summary.open }}
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+              Offene Maßnahmen
+              <span v-if="dashboard.poam_summary.overdue > 0" class="text-red-500 font-medium">
+                ({{ dashboard.poam_summary.overdue }} überfällig)
+              </span>
+            </div>
+          </div>
         </div>
 
         <!-- Domain lifecycle cards -->
@@ -179,11 +197,28 @@ const domains    = computed(() => dashboard.value?.domains ?? [])
           >
             <!-- Domain header -->
             <div class="flex items-start justify-between gap-4 mb-5">
-              <div>
-                <h2 class="text-lg font-semibold text-gray-900">{{ d.name }}</h2>
-                <span class="inline-block text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded mt-1">
-                  {{ d.isms_type === 'standard' ? 'Standard-ISMS' : d.isms_type === 'enhanced' ? 'Erweitertes ISMS' : 'Basis-ISMS' }}
-                </span>
+              <div class="flex items-start gap-4">
+                <ComplianceTrafficLight :status="d.compliance_status ?? 'unknown'" class="mt-1 shrink-0" />
+                <div>
+                  <h2 class="text-lg font-semibold text-gray-900">{{ d.name }}</h2>
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                      {{ d.isms_type === 'standard' ? 'Standard-ISMS' : d.isms_type === 'enhanced' ? 'Erweitertes ISMS' : 'Basis-ISMS' }}
+                    </span>
+                    <span
+                      v-if="d.poam_overdue > 0"
+                      class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium"
+                    >
+                      {{ d.poam_overdue }} Maßnahme{{ d.poam_overdue !== 1 ? 'n' : '' }} überfällig
+                    </span>
+                    <span
+                      v-else-if="d.poam_open > 0"
+                      class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded"
+                    >
+                      {{ d.poam_open }} Maßnahme{{ d.poam_open !== 1 ? 'n' : '' }} offen
+                    </span>
+                  </div>
+                </div>
               </div>
               <button
                 class="shrink-0 text-sm text-primary-600 hover:text-primary-800 font-medium transition-colors"

@@ -63,6 +63,11 @@ const routes = [
     name: 'Poam',
     component: () => import('@/views/PoamView.vue'),
   },
+  {
+    path: '/ki-assistent',
+    name: 'AiAssistant',
+    component: () => import('@/views/AiView.vue'),
+  },
 ]
 
 export const router = createRouter({

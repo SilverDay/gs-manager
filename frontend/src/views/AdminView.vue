@@ -379,6 +379,34 @@ onMounted(() => {
           </div>
         </div>
 
+        <!-- ── KI-Assistent ────────────────────────────────────── -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 class="text-sm font-semibold text-gray-700 mb-4">KI-Assistent</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">KI-Anbieter</label>
+              <select v-model="settings.ai_provider" class="w-full px-2.5 py-2 border border-gray-300 rounded text-sm">
+                <option value="">Kein KI-Anbieter</option>
+                <option value="claude">Claude (Anthropic)</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">API-Schlüssel</label>
+              <input
+                v-model="settings.ai_api_key"
+                type="password"
+                autocomplete="new-password"
+                class="w-full px-2.5 py-2 border border-gray-300 rounded text-sm"
+                placeholder="Leer lassen, um beizubehalten"
+              />
+            </div>
+          </div>
+          <p class="text-xs text-gray-400 mt-2">
+            Der API-Schlüssel wird verschlüsselt gespeichert und nie im Klartext übertragen.
+          </p>
+        </div>
+
         <button @click="saveSettings" :disabled="settingsLoading"
           class="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50">
           {{ settingsLoading ? 'Speichern …' : 'Einstellungen speichern' }}

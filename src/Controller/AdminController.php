@@ -6,6 +6,7 @@ namespace GsppManager\Controller;
 
 use GsppManager\Config\Database;
 use GsppManager\Middleware\AuditLogger;
+use GsppManager\Security\FieldEncryptor;
 use GsppManager\Security\PasswordHasher;
 use GsppManager\Service\MailService;
 
@@ -266,6 +267,12 @@ class AdminController extends BaseController
             $settings['smtp_pass'] = '••••••••';
         }
 
+        // Never expose the encrypted AI API key — return masked placeholder if set
+        if (isset($settings['ai_api_key_enc'])) {
+            $settings['ai_api_key'] = '••••••••';
+            unset($settings['ai_api_key_enc']);
+        }
+
         $this->json(['settings' => $settings]);
     }
 
@@ -290,6 +297,7 @@ class AdminController extends BaseController
             'language', 'timezone', 'session_timeout',
             'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass',
             'smtp_from', 'smtp_from_name', 'smtp_encryption',
+            'ai_provider',
         ];
 
         foreach ($allowed as $key) {
@@ -301,6 +309,11 @@ class AdminController extends BaseController
                 continue;
             }
             $existing[$key] = $body[$key];
+        }
+
+        // AI API key: encrypt before storing — never saved in plain text (NFA-S10/NFA-S12)
+        if (!empty($body['ai_api_key']) && $body['ai_api_key'] !== '••••••••') {
+            $existing['ai_api_key_enc'] = (new FieldEncryptor())->encrypt($body['ai_api_key']);
         }
 
         $pdo->prepare('UPDATE tenants SET settings_json = ? WHERE id = ?')
