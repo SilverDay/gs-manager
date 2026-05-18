@@ -167,6 +167,68 @@ class DomainRepository
         return (int) $this->pdo->lastInsertId();
     }
 
+    public function updateAsset(int $assetId, int $domainId, array $data): bool
+    {
+        $validNeeds = ['normal', 'high'];
+        $stmt = $this->pdo->prepare("
+            UPDATE assets
+               SET name               = ?,
+                   asset_type         = ?,
+                   description        = ?,
+                   protection_need_c  = ?,
+                   protection_need_i  = ?,
+                   protection_need_a  = ?,
+                   updated_at         = NOW()
+             WHERE id = ? AND domain_id = ?
+        ");
+        $stmt->execute([
+            $data['name'],
+            $data['asset_type']        ?? null,
+            $data['description']       ?? null,
+            in_array($data['protection_need_c'] ?? 'normal', $validNeeds, true) ? $data['protection_need_c'] : 'normal',
+            in_array($data['protection_need_i'] ?? 'normal', $validNeeds, true) ? $data['protection_need_i'] : 'normal',
+            in_array($data['protection_need_a'] ?? 'normal', $validNeeds, true) ? $data['protection_need_a'] : 'normal',
+            $assetId,
+            $domainId,
+        ]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function deleteAsset(int $assetId, int $domainId): bool
+    {
+        $stmt = $this->pdo->prepare("DELETE FROM assets WHERE id = ? AND domain_id = ?");
+        $stmt->execute([$assetId, $domainId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function updateProcess(int $processId, int $domainId, array $data): bool
+    {
+        $validCriticalities = ['low', 'medium', 'high', 'very_high'];
+        $stmt = $this->pdo->prepare("
+            UPDATE business_processes
+               SET name        = ?,
+                   description = ?,
+                   criticality = ?,
+                   updated_at  = NOW()
+             WHERE id = ? AND domain_id = ?
+        ");
+        $stmt->execute([
+            $data['name'],
+            $data['description'] ?? null,
+            in_array($data['criticality'] ?? 'medium', $validCriticalities, true) ? $data['criticality'] : 'medium',
+            $processId,
+            $domainId,
+        ]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function deleteProcess(int $processId, int $domainId): bool
+    {
+        $stmt = $this->pdo->prepare("DELETE FROM business_processes WHERE id = ? AND domain_id = ?");
+        $stmt->execute([$processId, $domainId]);
+        return $stmt->rowCount() > 0;
+    }
+
     public function linkProcessAsset(int $processId, int $assetId): void
     {
         $stmt = $this->pdo->prepare(
@@ -267,9 +329,13 @@ class DomainRepository
 
         $stmt = $this->pdo->prepare("
             INSERT INTO scoped_controls
-                (domain_id, control_id_str, catalog_id, title,
+                (domain_id, control_id_str, catalog_id, title, description,
                  parameters_json, tailoring_json, is_custom, created_at, updated_at)
-            VALUES (?, ?, ?, ?, '{}', '{}', FALSE, NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, '{}', '{}', FALSE, NOW(), NOW())
+            ON DUPLICATE KEY UPDATE
+                title       = VALUES(title),
+                description = VALUES(description),
+                updated_at  = NOW()
         ");
 
         foreach ($controls as $control) {
@@ -278,6 +344,7 @@ class DomainRepository
                 $control['id'],
                 $catalogId,
                 $control['title'],
+                $control['statement'] ?? null,
             ]);
         }
     }

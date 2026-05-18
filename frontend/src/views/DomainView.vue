@@ -13,8 +13,8 @@ const {
   domains, domain, assets, processes, scopedControls, controlsMeta,
   loading, error,
   loadDomains, createDomain, loadDomain,
-  loadAssets, createAsset,
-  loadProcesses, createProcess,
+  loadAssets, createAsset, updateAsset, deleteAsset,
+  loadProcesses, createProcess, updateProcess, deleteProcess,
   loadScopedControls, applyTailoring, generateProfile,
 } = useDomain()
 
@@ -100,40 +100,72 @@ async function exportProfile() {
 
 // ── Inline asset form ─────────────────────────────────────────────────────
 const showAssetForm  = ref(false)
+const editingAssetId = ref(null)
 const assetForm      = ref({ name: '', asset_type: '', description: '', protection_need_c: 'normal', protection_need_i: 'normal', protection_need_a: 'normal' })
 const assetError     = ref(null)
 const assetSaving    = ref(false)
 
+function startEditAsset(a) {
+  editingAssetId.value = a.id
+  assetForm.value = { name: a.name, asset_type: a.asset_type ?? '', description: a.description ?? '', protection_need_c: a.protection_need_c, protection_need_i: a.protection_need_i, protection_need_a: a.protection_need_a }
+  assetError.value = null
+  showAssetForm.value = true
+}
+
 async function submitAsset() {
   assetSaving.value = true
   assetError.value  = null
-  const res = await createAsset(selectedDomainId.value, assetForm.value)
+  const res = editingAssetId.value
+    ? await updateAsset(selectedDomainId.value, editingAssetId.value, assetForm.value)
+    : await createAsset(selectedDomainId.value, assetForm.value)
   assetSaving.value = false
   if (res?.success) {
     showAssetForm.value = false
+    editingAssetId.value = null
     assetForm.value = { name: '', asset_type: '', description: '', protection_need_c: 'normal', protection_need_i: 'normal', protection_need_a: 'normal' }
   } else {
-    assetError.value = res?.error ?? 'Fehler beim Anlegen'
+    assetError.value = res?.error ?? 'Fehler beim Speichern'
   }
 }
 
+async function confirmDeleteAsset(id) {
+  if (!window.confirm('Zielobjekt wirklich löschen?')) return
+  await deleteAsset(selectedDomainId.value, id)
+}
+
 // ── Inline process form ───────────────────────────────────────────────────
-const showProcessForm = ref(false)
-const processForm     = ref({ name: '', description: '', criticality: 'medium' })
-const processError    = ref(null)
-const processSaving   = ref(false)
+const showProcessForm   = ref(false)
+const editingProcessId  = ref(null)
+const processForm       = ref({ name: '', description: '', criticality: 'medium' })
+const processError      = ref(null)
+const processSaving     = ref(false)
+
+function startEditProcess(p) {
+  editingProcessId.value = p.id
+  processForm.value = { name: p.name, description: p.description ?? '', criticality: p.criticality }
+  processError.value = null
+  showProcessForm.value = true
+}
 
 async function submitProcess() {
   processSaving.value = true
   processError.value  = null
-  const res = await createProcess(selectedDomainId.value, processForm.value)
+  const res = editingProcessId.value
+    ? await updateProcess(selectedDomainId.value, editingProcessId.value, processForm.value)
+    : await createProcess(selectedDomainId.value, processForm.value)
   processSaving.value = false
   if (res?.success) {
     showProcessForm.value = false
+    editingProcessId.value = null
     processForm.value = { name: '', description: '', criticality: 'medium' }
   } else {
-    processError.value = res?.error ?? 'Fehler beim Anlegen'
+    processError.value = res?.error ?? 'Fehler beim Speichern'
   }
+}
+
+async function confirmDeleteProcess(id) {
+  if (!window.confirm('Geschäftsprozess wirklich löschen?')) return
+  await deleteProcess(selectedDomainId.value, id)
 }
 
 // ── 5-step wizard ─────────────────────────────────────────────────────────
@@ -376,9 +408,9 @@ onMounted(async () => {
               <div class="flex gap-2">
                 <button @click="submitAsset" :disabled="assetSaving || !assetForm.name.trim()"
                   class="px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50">
-                  {{ assetSaving ? 'Speichern …' : 'Speichern' }}
+                  {{ assetSaving ? 'Speichern …' : (editingAssetId ? 'Speichern' : 'Anlegen') }}
                 </button>
-                <button @click="showAssetForm = false" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">Abbrechen</button>
+                <button @click="showAssetForm = false; editingAssetId = null" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">Abbrechen</button>
               </div>
             </div>
 
@@ -392,6 +424,7 @@ onMounted(async () => {
                     <th class="text-center px-4 py-2 text-xs font-semibold text-gray-500">C</th>
                     <th class="text-center px-4 py-2 text-xs font-semibold text-gray-500">I</th>
                     <th class="text-center px-4 py-2 text-xs font-semibold text-gray-500">A</th>
+                    <th v-if="canWrite" class="text-right px-4 py-2 text-xs font-semibold text-gray-500"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -403,6 +436,10 @@ onMounted(async () => {
                         :class="a[field] === 'high' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'">
                         {{ a[field] === 'high' ? 'Hoch' : 'Normal' }}
                       </span>
+                    </td>
+                    <td v-if="canWrite" class="px-4 py-2.5 text-right whitespace-nowrap">
+                      <button @click="startEditAsset(a)" class="text-xs text-primary-600 hover:underline mr-2">Bearbeiten</button>
+                      <button @click="confirmDeleteAsset(a.id)" class="text-xs text-red-500 hover:underline">× Löschen</button>
                     </td>
                   </tr>
                 </tbody>
@@ -442,9 +479,9 @@ onMounted(async () => {
               <div class="flex gap-2">
                 <button @click="submitProcess" :disabled="processSaving || !processForm.name.trim()"
                   class="px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50">
-                  {{ processSaving ? 'Speichern …' : 'Speichern' }}
+                  {{ processSaving ? 'Speichern …' : (editingProcessId ? 'Speichern' : 'Anlegen') }}
                 </button>
-                <button @click="showProcessForm = false" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">Abbrechen</button>
+                <button @click="showProcessForm = false; editingProcessId = null" class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">Abbrechen</button>
               </div>
             </div>
 
@@ -456,6 +493,7 @@ onMounted(async () => {
                     <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500">Name</th>
                     <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500">Kritikalität</th>
                     <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500">Verknüpfte Assets</th>
+                    <th v-if="canWrite" class="text-right px-4 py-2 text-xs font-semibold text-gray-500"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -473,6 +511,10 @@ onMounted(async () => {
                       </span>
                     </td>
                     <td class="px-4 py-2.5 text-xs text-gray-500">{{ p.linked_assets || '—' }}</td>
+                    <td v-if="canWrite" class="px-4 py-2.5 text-right whitespace-nowrap">
+                      <button @click="startEditProcess(p)" class="text-xs text-primary-600 hover:underline mr-2">Bearbeiten</button>
+                      <button @click="confirmDeleteProcess(p.id)" class="text-xs text-red-500 hover:underline">× Löschen</button>
+                    </td>
                   </tr>
                 </tbody>
               </table>

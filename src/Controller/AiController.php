@@ -87,8 +87,14 @@ class AiController extends BaseController
             return;
         }
 
-        $client   = $this->resolveClient();
-        $response = $client->complete(self::SYSTEM_PROMPT, $userPrompt);
+        $client = $this->resolveClient();
+
+        try {
+            $response = $client->complete(self::SYSTEM_PROMPT, $userPrompt);
+        } catch (\RuntimeException $e) {
+            $this->error($e->getMessage(), 502);
+            return;
+        }
 
         $cache->store(
             $cacheKey,

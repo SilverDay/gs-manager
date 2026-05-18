@@ -191,12 +191,24 @@ class AuthController extends BaseController
         $settingsStmt->execute([$user['tenant_id']]);
         $settings = json_decode($settingsStmt->fetch()['settings_json'] ?? '{}', true) ?? [];
 
+        // Fall back to .env MAIL_* settings when tenant has no SMTP configured
         if (!isset($settings['smtp_host']) || $settings['smtp_host'] === '') {
-            // No SMTP configured — log and return the generic message
-            // (admin must reset manually)
-            AuditLogger::log('password_reset.no_smtp', 'users', (int) $user['id']);
-            $this->json($genericOk);
-            return;
+            $envHost = $_ENV['MAIL_HOST'] ?? '';
+            if ($envHost === '') {
+                AuditLogger::log('password_reset.no_smtp', 'users', (int) $user['id']);
+                $this->json($genericOk);
+                return;
+            }
+            $envPort = (int) ($_ENV['MAIL_PORT'] ?? 587);
+            $settings = [
+                'smtp_host'       => $envHost,
+                'smtp_port'       => $envPort,
+                'smtp_user'       => $_ENV['MAIL_USERNAME'] ?? '',
+                'smtp_pass'       => $_ENV['MAIL_PASSWORD'] ?? '',
+                'smtp_from'       => $_ENV['MAIL_FROM_ADDRESS'] ?? '',
+                'smtp_from_name'  => $_ENV['MAIL_FROM_NAME'] ?? '',
+                'smtp_encryption' => $_ENV['MAIL_ENCRYPTION'] ?? ($envPort === 465 ? 'ssl' : 'starttls'),
+            ];
         }
 
         $resetLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')

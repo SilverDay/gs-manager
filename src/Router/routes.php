@@ -102,9 +102,13 @@ $router->get('/api/domains/{id}',                              DomainController:
 $router->put('/api/domains/{id}',                              DomainController::class, 'update',         ['auth', 'csrf']);
 $router->get('/api/domains/{id}/assets',                       DomainController::class, 'assets',               ['auth']);
 $router->post('/api/domains/{id}/assets',                      DomainController::class, 'createAsset',          ['auth', 'csrf']);
+$router->put('/api/domains/{id}/assets/{assetId}',             DomainController::class, 'updateAsset',          ['auth', 'csrf']);
+$router->delete('/api/domains/{id}/assets/{assetId}',          DomainController::class, 'deleteAsset',          ['auth', 'csrf']);
 $router->post('/api/domains/{id}/assets/import-category',      DomainController::class, 'importAssetCategory',  ['auth', 'csrf']);
-$router->get('/api/domains/{id}/processes',                    DomainController::class, 'processes',      ['auth']);
-$router->post('/api/domains/{id}/processes',                   DomainController::class, 'createProcess',  ['auth', 'csrf']);
+$router->get('/api/domains/{id}/processes',                    DomainController::class, 'processes',            ['auth']);
+$router->post('/api/domains/{id}/processes',                   DomainController::class, 'createProcess',        ['auth', 'csrf']);
+$router->put('/api/domains/{id}/processes/{processId}',        DomainController::class, 'updateProcess',        ['auth', 'csrf']);
+$router->delete('/api/domains/{id}/processes/{processId}',     DomainController::class, 'deleteProcess',        ['auth', 'csrf']);
 $router->get('/api/domains/{id}/scoped-controls',              DomainController::class, 'scopedControls', ['auth']);
 $router->post('/api/domains/{id}/tailoring',                   DomainController::class, 'tailoring',      ['auth', 'csrf']);
 $router->post('/api/domains/{id}/generate-profile',            DomainController::class, 'generateProfile', ['auth', 'csrf']);

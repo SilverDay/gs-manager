@@ -65,6 +65,20 @@ export function useDomain() {
     return res
   }
 
+  async function updateAsset(domainId, assetId, data) {
+    const { execute } = useApi(`/api/domains/${domainId}/assets/${assetId}`)
+    const res = await execute({ method: 'PUT', body: data })
+    if (res?.success) await loadAssets(domainId)
+    return res
+  }
+
+  async function deleteAsset(domainId, assetId) {
+    const { execute } = useApi(`/api/domains/${domainId}/assets/${assetId}`)
+    const res = await execute({ method: 'DELETE' })
+    if (res?.success) await loadAssets(domainId)
+    return res
+  }
+
   // ── Processes ─────────────────────────────────────────────────────────────
 
   async function loadProcesses(domainId) {
@@ -79,6 +93,20 @@ export function useDomain() {
   async function createProcess(domainId, data) {
     const { execute } = useApi(`/api/domains/${domainId}/processes`)
     const res = await execute({ method: 'POST', body: data })
+    if (res?.success) await loadProcesses(domainId)
+    return res
+  }
+
+  async function updateProcess(domainId, processId, data) {
+    const { execute } = useApi(`/api/domains/${domainId}/processes/${processId}`)
+    const res = await execute({ method: 'PUT', body: data })
+    if (res?.success) await loadProcesses(domainId)
+    return res
+  }
+
+  async function deleteProcess(domainId, processId) {
+    const { execute } = useApi(`/api/domains/${domainId}/processes/${processId}`)
+    const res = await execute({ method: 'DELETE' })
     if (res?.success) await loadProcesses(domainId)
     return res
   }
@@ -118,8 +146,8 @@ export function useDomain() {
     domains, domain, assets, processes, scopedControls, controlsMeta,
     loading, error,
     loadDomains, createDomain, loadDomain, updateDomain,
-    loadAssets, createAsset,
-    loadProcesses, createProcess,
+    loadAssets, createAsset, updateAsset, deleteAsset,
+    loadProcesses, createProcess, updateProcess, deleteProcess,
     loadScopedControls, applyTailoring,
     generateProfile,
   }

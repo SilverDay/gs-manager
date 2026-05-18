@@ -321,7 +321,8 @@ function userInitials(name) {
                 {{ userInitials(impl.responsible_name) }}
               </div>
             </div>
-            <p class="text-sm text-gray-800 mt-0.5 truncate">{{ impl.control_title }}</p>
+            <p class="text-sm text-gray-800 mt-0.5 leading-snug">{{ impl.control_title }}</p>
+            <p v-if="impl.control_description" class="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-snug">{{ impl.control_description }}</p>
           </button>
         </div>
         <p v-if="meta" class="text-xs text-gray-400 mt-1.5 text-right">{{ meta.total }} Anforderungen</p>
@@ -360,18 +361,11 @@ function userInitials(name) {
             </div>
           </div>
 
-          <!-- Requirement text (collapsible) -->
-          <details v-if="selected.control_description" class="border-b border-gray-100">
-            <summary class="px-5 py-2.5 text-xs font-semibold text-gray-500 cursor-pointer select-none hover:bg-gray-50 list-none flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 transition-transform details-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-              Anforderungstext
-            </summary>
-            <div class="px-5 pb-4 pt-1">
-              <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-line bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">{{ selected.control_description }}</p>
-            </div>
-          </details>
+          <!-- Requirement text (always visible) -->
+          <div v-if="selected.control_description" class="border-b border-gray-100 px-5 py-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Anforderungstext</p>
+            <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">{{ selected.control_description }}</p>
+          </div>
 
           <!-- Form body -->
           <div class="px-5 py-5 space-y-5">

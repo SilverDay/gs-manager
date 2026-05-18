@@ -47,8 +47,15 @@ class ClaudeApiClient implements AiClientInterface
         curl_close($ch);
 
         if ($response === false || $httpCode !== 200) {
+            $detail = '';
+            if ($response !== false) {
+                $errData = json_decode((string) $response, true);
+                $detail  = $errData['error']['message'] ?? '';
+            }
             throw new RuntimeException(
-                "Claude API error: HTTP {$httpCode}" . ($curlErr ? " ({$curlErr})" : '')
+                'Claude API: HTTP ' . $httpCode .
+                ($detail ? ' — ' . $detail : '') .
+                ($curlErr ? " ({$curlErr})" : '')
             );
         }
 

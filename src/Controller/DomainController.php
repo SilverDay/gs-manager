@@ -331,6 +331,142 @@ class DomainController extends BaseController
         $this->json(['process_id' => $processId], 201);
     }
 
+    // ── PUT /api/domains/{id}/assets/{assetId} ────────────────────────────────
+
+    public function updateAsset(array $params): void
+    {
+        if (!AuthMiddleware::requireRole(['admin', 'isb', 'fachverantwortlich'])) {
+            return;
+        }
+
+        $domain = $this->resolveDomain($params);
+        if ($domain === null) {
+            return;
+        }
+
+        $assetId = (int) ($params['assetId'] ?? 0);
+        if ($assetId === 0) {
+            $this->error('Asset-ID fehlt.', 422);
+            return;
+        }
+
+        $body  = $this->requestBody();
+        $error = $this->validateRequired($body, ['name']);
+        if ($error !== null) {
+            $this->error($error, 422);
+            return;
+        }
+
+        $updated = $this->repo->updateAsset($assetId, (int) $domain['id'], $body);
+        if (!$updated) {
+            $this->error('Asset nicht gefunden.', 404);
+            return;
+        }
+
+        AuditLogger::log('update', 'assets', $assetId);
+        $this->json(['updated' => true]);
+    }
+
+    // ── DELETE /api/domains/{id}/assets/{assetId} ─────────────────────────────
+
+    public function deleteAsset(array $params): void
+    {
+        if (!AuthMiddleware::requireRole(['admin', 'isb', 'fachverantwortlich'])) {
+            return;
+        }
+
+        $domain = $this->resolveDomain($params);
+        if ($domain === null) {
+            return;
+        }
+
+        $assetId = (int) ($params['assetId'] ?? 0);
+        if ($assetId === 0) {
+            $this->error('Asset-ID fehlt.', 422);
+            return;
+        }
+
+        $deleted = $this->repo->deleteAsset($assetId, (int) $domain['id']);
+        if (!$deleted) {
+            $this->error('Asset nicht gefunden.', 404);
+            return;
+        }
+
+        AuditLogger::log('delete', 'assets', $assetId);
+        $this->json(['deleted' => true]);
+    }
+
+    // ── PUT /api/domains/{id}/processes/{processId} ───────────────────────────
+
+    public function updateProcess(array $params): void
+    {
+        if (!AuthMiddleware::requireRole(['admin', 'isb', 'fachverantwortlich'])) {
+            return;
+        }
+
+        $domain = $this->resolveDomain($params);
+        if ($domain === null) {
+            return;
+        }
+
+        $processId = (int) ($params['processId'] ?? 0);
+        if ($processId === 0) {
+            $this->error('Prozess-ID fehlt.', 422);
+            return;
+        }
+
+        $body  = $this->requestBody();
+        $error = $this->validateRequired($body, ['name']);
+        if ($error !== null) {
+            $this->error($error, 422);
+            return;
+        }
+
+        $validCriticalities = ['low', 'medium', 'high', 'very_high'];
+        if (isset($body['criticality']) && !in_array($body['criticality'], $validCriticalities, true)) {
+            $this->error('Ungültiger Kritikalitätswert.', 422);
+            return;
+        }
+
+        $updated = $this->repo->updateProcess($processId, (int) $domain['id'], $body);
+        if (!$updated) {
+            $this->error('Prozess nicht gefunden.', 404);
+            return;
+        }
+
+        AuditLogger::log('update', 'business_processes', $processId);
+        $this->json(['updated' => true]);
+    }
+
+    // ── DELETE /api/domains/{id}/processes/{processId} ────────────────────────
+
+    public function deleteProcess(array $params): void
+    {
+        if (!AuthMiddleware::requireRole(['admin', 'isb', 'fachverantwortlich'])) {
+            return;
+        }
+
+        $domain = $this->resolveDomain($params);
+        if ($domain === null) {
+            return;
+        }
+
+        $processId = (int) ($params['processId'] ?? 0);
+        if ($processId === 0) {
+            $this->error('Prozess-ID fehlt.', 422);
+            return;
+        }
+
+        $deleted = $this->repo->deleteProcess($processId, (int) $domain['id']);
+        if (!$deleted) {
+            $this->error('Prozess nicht gefunden.', 404);
+            return;
+        }
+
+        AuditLogger::log('delete', 'business_processes', $processId);
+        $this->json(['deleted' => true]);
+    }
+
     // ── GET /api/domains/{id}/scoped-controls ─────────────────────────────────
 
     public function scopedControls(array $params): void

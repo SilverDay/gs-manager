@@ -109,6 +109,13 @@ class ImplementationController extends BaseController
             'parameters_json',
         ]));
 
+        // Normalize empty strings to NULL for nullable FK/date columns
+        foreach (['responsible_user_id', 'target_date', 'completion_date'] as $nullable) {
+            if (array_key_exists($nullable, $fields) && $fields[$nullable] === '') {
+                $fields[$nullable] = null;
+            }
+        }
+
         if (empty($fields)) {
             $this->error('Keine gültigen Felder zum Speichern.', 422);
             return;
