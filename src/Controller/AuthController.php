@@ -128,6 +128,14 @@ class AuthController extends BaseController
 
     public function me(array $params): void
     {
+        // Re-read is_superadmin from DB so promotions take effect without re-login
+        $pdo  = Database::getConnection();
+        $stmt = $pdo->prepare('SELECT is_superadmin FROM users WHERE id = ?');
+        $stmt->execute([$this->userId()]);
+        $row  = $stmt->fetch();
+        $isSuperAdmin = (bool) ($row['is_superadmin'] ?? false);
+        $_SESSION['is_superadmin'] = $isSuperAdmin;
+
         $this->json([
             'user' => [
                 'id'            => $this->userId(),
@@ -135,7 +143,7 @@ class AuthController extends BaseController
                 'display_name'  => $_SESSION['user_name'] ?? '',
                 'role'          => $this->userRole(),
                 'tenant_id'     => $this->tenantId(),
-                'is_superadmin' => (bool) ($_SESSION['is_superadmin'] ?? false),
+                'is_superadmin' => $isSuperAdmin,
             ],
         ]);
     }
