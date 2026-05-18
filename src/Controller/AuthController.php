@@ -29,8 +29,8 @@ class AuthController extends BaseController
 
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("
-            SELECT id, tenant_id, email, password_hash, display_name, role, is_active, totp_enabled,
-                   totp_secret_enc, totp_last_used_step
+            SELECT id, tenant_id, email, password_hash, display_name, role, is_active, is_superadmin,
+                   totp_enabled, totp_secret_enc, totp_last_used_step
             FROM users
             WHERE email = ?
             LIMIT 1
@@ -90,11 +90,12 @@ class AuthController extends BaseController
         // Rotate CSRF token on privilege elevation (prevent session-fixation via CSRF)
         CsrfMiddleware::rotateToken();
 
-        $_SESSION['user_id'] = (int) $user['id'];
-        $_SESSION['tenant_id'] = (int) $user['tenant_id'];
-        $_SESSION['user_role'] = $user['role'];
-        $_SESSION['user_email'] = $user['email'];
-        $_SESSION['user_name'] = $user['display_name'];
+        $_SESSION['user_id']       = (int) $user['id'];
+        $_SESSION['tenant_id']     = (int) $user['tenant_id'];
+        $_SESSION['user_role']     = $user['role'];
+        $_SESSION['user_email']    = $user['email'];
+        $_SESSION['user_name']     = $user['display_name'];
+        $_SESSION['is_superadmin'] = (bool) $user['is_superadmin'];
         $_SESSION['last_activity'] = time();
 
         // Update last login
@@ -105,10 +106,11 @@ class AuthController extends BaseController
 
         $this->json([
             'user' => [
-                'id'           => (int) $user['id'],
-                'email'        => $user['email'],
-                'display_name' => $user['display_name'],
-                'role'         => $user['role'],
+                'id'            => (int) $user['id'],
+                'email'         => $user['email'],
+                'display_name'  => $user['display_name'],
+                'role'          => $user['role'],
+                'is_superadmin' => (bool) $user['is_superadmin'],
             ],
             'csrf_token' => CsrfMiddleware::generateToken(),
         ]);
@@ -128,11 +130,12 @@ class AuthController extends BaseController
     {
         $this->json([
             'user' => [
-                'id'           => $this->userId(),
-                'email'        => $_SESSION['user_email'] ?? '',
-                'display_name' => $_SESSION['user_name'] ?? '',
-                'role'         => $this->userRole(),
-                'tenant_id'    => $this->tenantId(),
+                'id'            => $this->userId(),
+                'email'         => $_SESSION['user_email'] ?? '',
+                'display_name'  => $_SESSION['user_name'] ?? '',
+                'role'          => $this->userRole(),
+                'tenant_id'     => $this->tenantId(),
+                'is_superadmin' => (bool) ($_SESSION['is_superadmin'] ?? false),
             ],
         ]);
     }

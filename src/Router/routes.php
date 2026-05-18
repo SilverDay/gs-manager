@@ -25,6 +25,7 @@ use GsppManager\Controller\PoamController;
 use GsppManager\Controller\ProfileController;
 use GsppManager\Controller\RiskController;
 use GsppManager\Controller\SspController;
+use GsppManager\Controller\TenantController;
 
 // Register middleware
 $router->registerMiddleware('auth',       [AuthMiddleware::class, 'handle']);
@@ -35,6 +36,15 @@ $router->registerMiddleware('rate_login', static function (): bool {
         http_response_code(429);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['success' => false, 'error' => 'Zu viele Anmeldeversuche. Bitte warten Sie eine Minute.'], JSON_UNESCAPED_UNICODE);
+        return false;
+    }
+    return true;
+});
+$router->registerMiddleware('superadmin', static function (): bool {
+    if (empty($_SESSION['is_superadmin'])) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'error' => 'Kein Zugriff. Nur Plattform-Administratoren dürfen diese Funktion nutzen.'], JSON_UNESCAPED_UNICODE);
         return false;
     }
     return true;
@@ -147,6 +157,14 @@ $router->get('/api/domains/{id}/poam/export',    PoamController::class, 'export'
 
 // ─── Dashboard timeline ─────────────────────────────────────────
 $router->get('/api/domains/{id}/dashboard/timeline', DashboardController::class, 'timeline', ['auth']);
+
+// ─── Superadmin — Tenant management ────────────────────────────
+$router->get('/api/superadmin/tenants',                    TenantController::class, 'list',       ['auth', 'superadmin']);
+$router->post('/api/superadmin/tenants',                   TenantController::class, 'create',     ['auth', 'superadmin', 'csrf']);
+$router->put('/api/superadmin/tenants/{id}',               TenantController::class, 'update',     ['auth', 'superadmin', 'csrf']);
+$router->get('/api/superadmin/tenants/{id}/users',         TenantController::class, 'listUsers',  ['auth', 'superadmin']);
+$router->post('/api/superadmin/tenants/{id}/users',        TenantController::class, 'createUser', ['auth', 'superadmin', 'csrf']);
+$router->put('/api/superadmin/users/{userId}',             TenantController::class, 'updateUser', ['auth', 'superadmin', 'csrf']);
 
 // ─── AI Assistant ───────────────────────────────────────────────
 $router->post('/api/ai/explain',                AiController::class, 'explain',                ['auth', 'csrf', 'rate_ai']);

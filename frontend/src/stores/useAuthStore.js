@@ -6,8 +6,9 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
 
   const isAuthenticated = computed(() => user.value !== null)
-  const displayName = computed(() => user.value?.display_name || '')
-  const role = computed(() => user.value?.role || '')
+  const displayName     = computed(() => user.value?.display_name || '')
+  const role            = computed(() => user.value?.role || '')
+  const isSuperAdmin    = computed(() => user.value?.is_superadmin === true)
 
   async function login(email, password) {
     const { execute } = useApi('/api/auth/login', { method: 'POST' })
@@ -40,5 +41,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, isAuthenticated, displayName, role, login, logout, fetchUser }
+  return { user, isAuthenticated, displayName, role, isSuperAdmin, login, logout, fetchUser }
 })
