@@ -136,7 +136,7 @@ async function fetchHeatmap() {
 
 async function fetchAssets() {
   const res = await api.get(`/api/domains/${domainId.value}/assets`)
-  if (res.success) assets.value = res.data.items ?? []
+  if (res.success) assets.value = res.data.assets ?? []
 }
 
 async function fetchScopedControls() {

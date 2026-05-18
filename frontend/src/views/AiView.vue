@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/stores/useAuthStore.js'
 import { useApiClient, useApi } from '@/composables/useApi.js'
 
@@ -96,11 +96,50 @@ const loading    = ref({})    // { [tabId]: bool }
 const errors     = ref({})    // { [tabId]: string }
 
 // ─── Control selector ───────────────────────────────────────────
-const domains        = ref([])
-const selectorDomain = ref('')
-const domainControls = ref([])
-const selectorControl = ref('')
-const loadingControls = ref(false)
+const domains           = ref([])
+const selectorDomain    = ref('')
+const domainControls    = ref([])
+const selectorControl   = ref('')   // currently applied control_id_str
+const loadingControls   = ref(false)
+const controlQuery      = ref('')   // combobox input text
+const controlDropOpen   = ref(false)
+const controlHighlight  = ref(-1)
+
+const controlSuggestions = computed(() => {
+  const q = controlQuery.value.trim().toLowerCase()
+  if (!q) return domainControls.value.slice(0, 8)
+  return domainControls.value
+    .filter(c => c.control_id_str.toLowerCase().includes(q) || c.title.toLowerCase().includes(q))
+    .slice(0, 10)
+})
+
+function selectSuggestion(c) {
+  selectorControl.value = c.control_id_str
+  controlQuery.value    = `${c.control_id_str} – ${c.title}`
+  controlDropOpen.value = false
+  controlHighlight.value = -1
+}
+
+function onControlInput() {
+  selectorControl.value  = ''
+  controlDropOpen.value  = true
+  controlHighlight.value = -1
+}
+
+function onControlKeydown(e) {
+  if (!controlDropOpen.value) { controlDropOpen.value = true; return }
+  const len = controlSuggestions.value.length
+  if (e.key === 'ArrowDown') { e.preventDefault(); controlHighlight.value = (controlHighlight.value + 1) % len }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); controlHighlight.value = (controlHighlight.value - 1 + len) % len }
+  else if (e.key === 'Enter' && controlHighlight.value >= 0) { e.preventDefault(); selectSuggestion(controlSuggestions.value[controlHighlight.value]) }
+  else if (e.key === 'Escape') { controlDropOpen.value = false }
+}
+
+function onControlBlur() {
+  setTimeout(() => { controlDropOpen.value = false }, 150)
+}
+
+onBeforeUnmount(() => { controlDropOpen.value = false })
 
 const CONTROL_TABS = new Set(['explain', 'suggest', 'risk', 'maturity', 'map2023'])
 const activeTabHasSelector = computed(() => CONTROL_TABS.has(activeTab.value))
@@ -112,14 +151,24 @@ onMounted(async () => {
 })
 
 watch(selectorDomain, async (id) => {
-  selectorControl.value = ''
-  domainControls.value  = []
+  selectorControl.value  = ''
+  controlQuery.value     = ''
+  controlDropOpen.value  = false
+  domainControls.value   = []
   if (!id) return
   loadingControls.value = true
-  const { execute } = useApi(`/api/domains/${id}/scoped-controls?per_page=200`)
-  const res = await execute()
+  const all = []
+  let page = 1
+  while (true) {
+    const { execute } = useApi(`/api/domains/${id}/scoped-controls?per_page=100&page=${page}`)
+    const res = await execute()
+    if (!res?.success) break
+    all.push(...(res.data.items ?? []))
+    if (page >= (res.data.meta?.last_page ?? 1)) break
+    page++
+  }
+  domainControls.value  = all
   loadingControls.value = false
-  if (res?.success) domainControls.value = res.data.items ?? []
 })
 
 function applyControlSelector() {
@@ -221,13 +270,33 @@ async function submit() {
                 <option value="">Verbund wählen …</option>
                 <option v-for="d in domains" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
               </select>
-              <select v-model="selectorControl" :disabled="!selectorDomain || loadingControls"
-                      class="flex-1 min-w-0 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white disabled:opacity-50">
-                <option value="">{{ loadingControls ? 'Lade …' : 'Anforderung wählen …' }}</option>
-                <option v-for="c in domainControls" :key="c.control_id_str" :value="c.control_id_str">
-                  {{ c.control_id_str }} – {{ c.title }}
-                </option>
-              </select>
+              <div class="relative flex-1 min-w-0">
+                <input
+                  v-model="controlQuery"
+                  type="text"
+                  :disabled="!selectorDomain || loadingControls"
+                  :placeholder="loadingControls ? 'Lade …' : 'Anforderung suchen …'"
+                  class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white disabled:opacity-50"
+                  @input="onControlInput"
+                  @focus="controlDropOpen = true"
+                  @blur="onControlBlur"
+                  @keydown="onControlKeydown"
+                  autocomplete="off"
+                />
+                <ul v-if="controlDropOpen && controlSuggestions.length"
+                    class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto text-sm">
+                  <li v-for="(c, i) in controlSuggestions" :key="c.control_id_str"
+                      @mousedown.prevent="selectSuggestion(c)"
+                      class="px-3 py-2 cursor-pointer"
+                      :class="i === controlHighlight ? 'bg-primary-50 text-primary-700' : 'hover:bg-gray-50'">
+                    <span class="font-mono text-xs font-semibold text-primary-700 mr-2">{{ c.control_id_str }}</span>{{ c.title }}
+                  </li>
+                </ul>
+                <p v-else-if="controlDropOpen && controlQuery && !loadingControls"
+                   class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-sm px-3 py-2 text-sm text-gray-400">
+                  Keine Treffer
+                </p>
+              </div>
               <button :disabled="!selectorControl"
                       @click="applyControlSelector"
                       class="shrink-0 px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-40 transition-colors">

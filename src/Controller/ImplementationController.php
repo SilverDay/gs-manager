@@ -116,8 +116,18 @@ class ImplementationController extends BaseController
             }
         }
 
+        // Sync asset associations if provided
+        if (array_key_exists('asset_ids', $body)) {
+            $assetIds = is_array($body['asset_ids'])
+                ? array_map('intval', $body['asset_ids'])
+                : [];
+            $this->repo->setAssets($implId, $assetIds);
+        }
+
         if (empty($fields)) {
-            $this->error('Keine gültigen Felder zum Speichern.', 422);
+            // Only asset_ids was sent — still valid, return fresh state
+            $fresh = $this->repo->findById($implId, $tenantId);
+            $this->json(['implementation' => $fresh]);
             return;
         }
 

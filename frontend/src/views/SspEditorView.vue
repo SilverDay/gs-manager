@@ -85,6 +85,7 @@ function selectControl(impl) {
     status:              impl.status              ?? 'not_started',
     maturity_level:      Number(impl.maturity_level ?? 0),
     description:         impl.description         ?? '',
+    asset_ids:           impl.asset_ids           ? [...impl.asset_ids] : [],
     responsible_user_id: impl.responsible_user_id  ?? '',
     target_date:         impl.target_date          ?? '',
     completion_date:     impl.completion_date      ?? '',
@@ -404,6 +405,22 @@ function userInitials(name) {
                 <option value="">— Nicht zugewiesen —</option>
                 <option v-for="u in users" :key="u.id" :value="u.id">{{ u.display_name }} ({{ u.role }})</option>
               </select>
+            </div>
+
+            <!-- Zielobjekte (multi) -->
+            <div v-if="assets.length">
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Zielobjekte</label>
+              <div class="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-36 overflow-y-auto">
+                <label v-for="a in assets" :key="a.id"
+                       class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
+                  <input type="checkbox"
+                         :value="a.id"
+                         v-model="form.asset_ids"
+                         @change="saveField"
+                         class="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-400" />
+                  {{ a.name }}
+                </label>
+              </div>
             </div>
 
             <!-- Daten -->

@@ -38,15 +38,21 @@ async function selectDomain(id) {
   await loadScopedControls(id)
 }
 
-// ── Controls search ───────────────────────────────────────────────────────
+// ── Controls search + pagination ─────────────────────────────────────────
 const controlSearch = ref('')
+const controlPage   = ref(1)
 let searchTimer = null
 watch(controlSearch, () => {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
-    if (selectedDomainId.value) loadScopedControls(selectedDomainId.value, { search: controlSearch.value })
+    controlPage.value = 1
+    if (selectedDomainId.value) loadScopedControls(selectedDomainId.value, { search: controlSearch.value, page: 1 })
   }, 300)
 })
+function controlsGoTo(page) {
+  controlPage.value = page
+  loadScopedControls(selectedDomainId.value, { search: controlSearch.value, page })
+}
 
 // ── Tailoring panel ───────────────────────────────────────────────────────
 const tailoringControl = ref(null)
@@ -556,8 +562,15 @@ onMounted(async () => {
                   </tbody>
                 </table>
               </div>
-              <div v-if="controlsMeta && controlsMeta.last_page > 1" class="px-4 py-3 border-t border-gray-100 text-xs text-gray-500">
-                {{ controlsMeta.total }} Anforderungen
+              <div v-if="controlsMeta" class="px-4 py-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                <span>{{ controlsMeta.total }} Anforderungen</span>
+                <div v-if="controlsMeta.last_page > 1" class="flex items-center gap-1">
+                  <button @click="controlsGoTo(controlPage - 1)" :disabled="controlPage <= 1"
+                    class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">‹</button>
+                  <span>{{ controlPage }} / {{ controlsMeta.last_page }}</span>
+                  <button @click="controlsGoTo(controlPage + 1)" :disabled="controlPage >= controlsMeta.last_page"
+                    class="px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">›</button>
+                </div>
               </div>
             </div>
 

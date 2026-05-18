@@ -97,6 +97,8 @@ class RiskController extends BaseController
             'title', 'description', 'asset_id', 'likelihood', 'impact',
             'treatment', 'acceptance_justification', 'owner_user_id',
         ]));
+        $fields['asset_id']      = ($fields['asset_id']      ?? '') !== '' ? (int) $fields['asset_id']      : null;
+        $fields['owner_user_id'] = ($fields['owner_user_id'] ?? '') !== '' ? (int) $fields['owner_user_id'] : null;
         $fields['risk_level'] = $this->engine->calculateLevel($likelihood, $impact);
 
         $riskId = $this->repo->create($domainId, $fields, $this->userId());
@@ -137,6 +139,12 @@ class RiskController extends BaseController
             'title', 'description', 'asset_id', 'likelihood', 'impact',
             'treatment', 'acceptance_justification', 'owner_user_id',
         ]));
+        if (array_key_exists('asset_id', $fields)) {
+            $fields['asset_id'] = ($fields['asset_id'] ?? '') !== '' ? (int) $fields['asset_id'] : null;
+        }
+        if (array_key_exists('owner_user_id', $fields)) {
+            $fields['owner_user_id'] = ($fields['owner_user_id'] ?? '') !== '' ? (int) $fields['owner_user_id'] : null;
+        }
 
         // Recompute risk_level if likelihood or impact changed
         $likelihood = $fields['likelihood'] ?? $existing['likelihood'];

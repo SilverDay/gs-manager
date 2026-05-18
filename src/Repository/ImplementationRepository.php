@@ -39,7 +39,7 @@ class ImplementationRepository
         }
 
         if (!empty($filters['asset_id'])) {
-            $where[]  = 'i.asset_id = ?';
+            $where[]  = 'EXISTS (SELECT 1 FROM implementation_assets ia WHERE ia.implementation_id = i.id AND ia.asset_id = ?)';
             $params[] = (int) $filters['asset_id'];
         }
 
@@ -85,7 +85,7 @@ class ImplementationRepository
         $offset  = ($page - 1) * $perPage;
         $listSql = "
             SELECT
-                i.id, i.scoped_control_id, i.asset_id,
+                i.id, i.scoped_control_id,
                 i.status, i.maturity_level, i.description,
                 i.responsible_user_id, i.target_date, i.completion_date,
                 i.evidence_json, i.parameters_json,
@@ -104,6 +104,24 @@ class ImplementationRepository
         $listStmt = $this->pdo->prepare($listSql);
         $listStmt->execute(array_merge($params, [$perPage, $offset]));
         $items = $listStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Attach asset_ids arrays
+        if (!empty($items)) {
+            $implIds     = array_column($items, 'id');
+            $placeholders = implode(',', array_fill(0, count($implIds), '?'));
+            $iaStmt = $this->pdo->prepare(
+                "SELECT implementation_id, asset_id FROM implementation_assets WHERE implementation_id IN ({$placeholders})"
+            );
+            $iaStmt->execute($implIds);
+            $assetMap = [];
+            foreach ($iaStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $assetMap[(int) $row['implementation_id']][] = (int) $row['asset_id'];
+            }
+            foreach ($items as &$item) {
+                $item['asset_ids'] = $assetMap[(int) $item['id']] ?? [];
+            }
+            unset($item);
+        }
 
         return ['items' => $items, 'total' => $total, 'progress' => $progress];
     }
@@ -124,7 +142,38 @@ class ImplementationRepository
         ");
         $stmt->execute([$implId, $tenantId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row !== false ? $row : null;
+        if ($row === false) {
+            return null;
+        }
+        $iaStmt = $this->pdo->prepare(
+            "SELECT asset_id FROM implementation_assets WHERE implementation_id = ?"
+        );
+        $iaStmt->execute([$implId]);
+        $row['asset_ids'] = array_map('intval', $iaStmt->fetchAll(PDO::FETCH_COLUMN));
+        return $row;
+    }
+
+    /**
+     * Replace the full set of linked assets for an implementation.
+     * Tenant ownership must be verified by the caller before invoking.
+     *
+     * @param int[] $assetIds
+     */
+    public function setAssets(int $implId, array $assetIds): void
+    {
+        $this->pdo->prepare("DELETE FROM implementation_assets WHERE implementation_id = ?")
+                  ->execute([$implId]);
+
+        if (!empty($assetIds)) {
+            $placeholders = implode(',', array_fill(0, count($assetIds), '(?,?)'));
+            $values = [];
+            foreach ($assetIds as $aid) {
+                $values[] = $implId;
+                $values[] = (int) $aid;
+            }
+            $this->pdo->prepare("INSERT IGNORE INTO implementation_assets (implementation_id, asset_id) VALUES {$placeholders}")
+                      ->execute($values);
+        }
     }
 
     /**
@@ -166,6 +215,7 @@ class ImplementationRepository
             'responsible_user_id', 'target_date', 'completion_date',
             'parameters_json',
         ];
+        unset($fields['asset_id'], $fields['asset_ids']);
 
         $sets   = [];
         $params = [];
