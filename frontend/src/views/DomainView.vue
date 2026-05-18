@@ -54,6 +54,16 @@ function controlsGoTo(page) {
   loadScopedControls(selectedDomainId.value, { search: controlSearch.value, page })
 }
 
+// ── Parameter helpers ─────────────────────────────────────────────────────
+
+function resolveParams(text, parametersJson) {
+  if (!text) return text
+  const values = JSON.parse(parametersJson || '{}')
+  return text.replace(/\{\{\s*insert:\s*param,\s*([\w.\-]+)\s*\}\}/g, (_, id) => {
+    return values[id] ?? `[${id}]`
+  })
+}
+
 // ── Tailoring panel ───────────────────────────────────────────────────────
 const tailoringControl = ref(null)
 const tailoringForm    = ref({ parameters: {}, prefix: '', suffix: '', excluded: false, exclusion_reason: '' })
@@ -61,8 +71,14 @@ const tailoringError   = ref(null)
 const tailoringSaving  = ref(false)
 
 function openTailoring(control) {
-  const params   = JSON.parse(control.parameters_json || '{}')
-  const tailoring = JSON.parse(control.tailoring_json  || '{}')
+  const savedParams = JSON.parse(control.parameters_json || '{}')
+  const labels      = JSON.parse(control.param_labels_json || '{}')
+  const tailoring   = JSON.parse(control.tailoring_json  || '{}')
+
+  // Seed every param found in description (from labels), then overlay saved values
+  const allParamIds = Object.keys(labels)
+  const params = Object.fromEntries(allParamIds.map(id => [id, savedParams[id] ?? '']))
+
   tailoringControl.value = control
   tailoringForm.value = {
     parameters:       params,
@@ -590,14 +606,17 @@ onMounted(async () => {
                 <!-- Base requirement text -->
                 <div v-if="tailoringControl.description">
                   <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Basisanforderung</p>
-                  <p class="text-xs text-gray-600 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 whitespace-pre-line">{{ tailoringControl.description }}</p>
+                  <p class="text-xs text-gray-600 leading-relaxed bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 whitespace-pre-line">{{ resolveParams(tailoringControl.description, tailoringControl.parameters_json) }}</p>
                 </div>
 
                 <!-- Parameters -->
                 <div v-if="Object.keys(tailoringForm.parameters).length > 0">
                   <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Parameter</p>
                   <div v-for="(val, key) in tailoringForm.parameters" :key="key" class="mb-2">
-                    <label class="block text-xs text-gray-500 mb-1 font-mono">{{ key }}</label>
+                    <label class="block text-xs text-gray-500 mb-1">
+                      {{ JSON.parse(tailoringControl.param_labels_json || '{}')[key] || key }}
+                      <span class="font-mono text-gray-400 ml-1">({{ key }})</span>
+                    </label>
                     <input v-model="tailoringForm.parameters[key]" type="text"
                       class="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
@@ -631,7 +650,7 @@ onMounted(async () => {
                       <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Vorschau</p>
                       <div class="text-xs text-gray-700 leading-relaxed bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 space-y-1.5">
                         <p v-if="tailoringForm.prefix" class="text-blue-700 italic">{{ tailoringForm.prefix }}</p>
-                        <p v-if="tailoringControl.description" class="text-gray-600">{{ tailoringControl.description }}</p>
+                        <p v-if="tailoringControl.description" class="text-gray-600">{{ resolveParams(tailoringControl.description, JSON.stringify(tailoringForm.parameters)) }}</p>
                         <p v-if="tailoringForm.suffix" class="text-blue-700 italic">{{ tailoringForm.suffix }}</p>
                       </div>
                     </div>

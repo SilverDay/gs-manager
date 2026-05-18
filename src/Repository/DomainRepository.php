@@ -330,21 +330,29 @@ class DomainRepository
         $stmt = $this->pdo->prepare("
             INSERT INTO scoped_controls
                 (domain_id, control_id_str, catalog_id, title, description,
-                 parameters_json, tailoring_json, is_custom, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, '{}', '{}', FALSE, NOW(), NOW())
+                 parameters_json, param_labels_json, tailoring_json, is_custom, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, '{}', ?, '{}', FALSE, NOW(), NOW())
             ON DUPLICATE KEY UPDATE
-                title       = VALUES(title),
-                description = VALUES(description),
-                updated_at  = NOW()
+                title             = VALUES(title),
+                description       = VALUES(description),
+                param_labels_json = VALUES(param_labels_json),
+                updated_at        = NOW()
         ");
 
         foreach ($controls as $control) {
+            $labels = [];
+            foreach ($control['params'] ?? [] as $p) {
+                if (!empty($p['id'])) {
+                    $labels[$p['id']] = $p['label'] ?? $p['id'];
+                }
+            }
             $stmt->execute([
                 $domainId,
                 $control['id'],
                 $catalogId,
                 $control['title'],
                 $control['statement'] ?? null,
+                json_encode($labels, JSON_UNESCAPED_UNICODE),
             ]);
         }
     }

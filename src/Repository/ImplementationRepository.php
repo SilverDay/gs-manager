@@ -92,6 +92,7 @@ class ImplementationRepository
                 i.updated_by, i.updated_at,
                 sc.control_id_str, sc.title AS control_title,
                 sc.description AS control_description, sc.tailoring_json,
+                sc.parameters_json AS control_parameters_json,
                 u.display_name AS responsible_name
             FROM implementations i
             JOIN scoped_controls sc ON sc.id = i.scoped_control_id
@@ -133,7 +134,8 @@ class ImplementationRepository
     {
         $stmt = $this->pdo->prepare("
             SELECT i.*, sc.control_id_str, sc.title AS control_title,
-                   sc.description AS control_description, sc.tailoring_json
+                   sc.description AS control_description, sc.tailoring_json,
+                   sc.parameters_json AS control_parameters_json
             FROM implementations i
             JOIN scoped_controls sc ON sc.id = i.scoped_control_id
             JOIN information_domains d ON d.id = sc.domain_id
@@ -283,7 +285,8 @@ class ImplementationRepository
     {
         $stmt = $this->pdo->prepare("
             SELECT i.*, sc.control_id_str, sc.title AS control_title,
-                   sc.description AS control_description, sc.tailoring_json
+                   sc.description AS control_description, sc.tailoring_json,
+                   sc.parameters_json AS control_parameters_json
             FROM implementations i
             JOIN scoped_controls sc ON sc.id = i.scoped_control_id
             JOIN information_domains d ON d.id = sc.domain_id

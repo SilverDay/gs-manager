@@ -1,5 +1,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+
+function resolveParams(text, parametersJson) {
+  if (!text) return text
+  const values = JSON.parse(parametersJson || '{}')
+  return text.replace(/\{\{\s*insert:\s*param,\s*([\w.\-]+)\s*\}\}/g, (_, id) => {
+    return values[id] ?? `[${id}]`
+  })
+}
 import { useRoute } from 'vue-router'
 import { useImplementation } from '@/composables/useImplementation.js'
 import { useDomain } from '@/composables/useDomain.js'
@@ -323,7 +331,7 @@ function userInitials(name) {
               </div>
             </div>
             <p class="text-sm text-gray-800 mt-0.5 leading-snug">{{ impl.control_title }}</p>
-            <p v-if="impl.control_description" class="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-snug">{{ impl.control_description }}</p>
+            <p v-if="impl.control_description" class="text-xs text-gray-400 mt-0.5 line-clamp-2 leading-snug">{{ resolveParams(impl.control_description, impl.control_parameters_json) }}</p>
           </button>
         </div>
         <p v-if="meta" class="text-xs text-gray-400 mt-1.5 text-right">{{ meta.total }} Anforderungen</p>
@@ -365,7 +373,7 @@ function userInitials(name) {
           <!-- Requirement text (always visible) -->
           <div v-if="selected.control_description" class="border-b border-gray-100 px-5 py-4">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Anforderungstext</p>
-            <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">{{ selected.control_description }}</p>
+            <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">{{ resolveParams(selected.control_description, selected.control_parameters_json) }}</p>
           </div>
 
           <!-- Form body -->
