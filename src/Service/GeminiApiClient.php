@@ -8,7 +8,7 @@ use RuntimeException;
 
 class GeminiApiClient implements AiClientInterface
 {
-    private const DEFAULT_MODEL = 'gemini-2.0-flash';
+    private const DEFAULT_MODEL = 'gemini-2.5-flash';
     private const API_BASE      = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
     private int $lastTokenCount = 0;
