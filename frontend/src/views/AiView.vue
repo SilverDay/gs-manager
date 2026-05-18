@@ -207,7 +207,7 @@ async function submit() {
       <div
         v-for="tab in TABS"
         :key="tab.id"
-        v-show="activeTab === tab.id"
+        v-if="activeTab === tab.id"
         class="max-w-3xl"
       >
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
