@@ -22,7 +22,7 @@ class ClaudeApiClient implements AiClientInterface
     {
         $payload = json_encode([
             'model'      => $this->model,
-            'max_tokens' => 1024,
+            'max_tokens' => 4096,
             'system'     => $systemPrompt,
             'messages'   => [['role' => 'user', 'content' => $userPrompt]],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

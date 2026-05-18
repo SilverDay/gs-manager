@@ -27,7 +27,7 @@ class GeminiApiClient implements AiClientInterface
             'contents' => [
                 ['role' => 'user', 'parts' => [['text' => $combinedPrompt]]],
             ],
-            'generationConfig' => ['maxOutputTokens' => 1024],
+            'generationConfig' => ['maxOutputTokens' => 4096],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $url = self::API_BASE . urlencode($this->model) . ':generateContent?key=' . urlencode($this->apiKey);
