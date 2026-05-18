@@ -204,9 +204,8 @@ async function submit() {
       </div>
 
       <!-- Active tab panel -->
+      <template v-for="tab in TABS" :key="tab.id">
       <div
-        v-for="tab in TABS"
-        :key="tab.id"
         v-if="activeTab === tab.id"
         class="max-w-3xl"
       >
@@ -299,6 +298,7 @@ async function submit() {
 
         </div>
       </div>
+      </template>
     </template>
   </div>
 </template>
