@@ -68,6 +68,13 @@ class AiController extends BaseController
         };
     }
 
+    // ─── Input sanitization ──────────────────────────────────────
+
+    private function s(mixed $value, int $max = 500): string
+    {
+        return mb_substr((string) $value, 0, $max);
+    }
+
     // ─── Shared query handler ────────────────────────────────────
 
     private function handleQuery(string $promptType, array $body, string $userPrompt): void
@@ -92,7 +99,8 @@ class AiController extends BaseController
         try {
             $response = $client->complete(self::SYSTEM_PROMPT, $userPrompt);
         } catch (\RuntimeException $e) {
-            $this->error($e->getMessage(), 502);
+            error_log('[AI query] ' . $e->getMessage());
+            $this->error('KI-Dienst nicht erreichbar.', 502);
             return;
         }
 
@@ -133,9 +141,9 @@ class AiController extends BaseController
         }
 
         $prompt = "Erkläre die folgende Grundschutz++ Anforderung in einfacher, verständlicher Sprache für ein KMU ohne OSCAL-Erfahrung.\n\n" .
-            "Anforderungs-ID: {$body['control_id']}\n" .
-            "Titel: {$body['control_title']}\n" .
-            "Beschreibung: {$body['description']}\n\n" .
+            "Anforderungs-ID: {$this->s($body['control_id'], 100)}\n" .
+            "Titel: {$this->s($body['control_title'], 200)}\n" .
+            "Beschreibung: {$this->s($body['description'])}\n\n" .
             "Gib eine kurze Erklärung (3–5 Sätze) und ein konkretes Praxisbeispiel für ein KMU.";
 
         $this->handleQuery('explain', $body, $prompt);
@@ -151,13 +159,13 @@ class AiController extends BaseController
             return;
         }
 
-        $context = isset($body['industry']) ? "Branche: {$body['industry']}\n" : '';
-        $context .= isset($body['org_size']) ? "Unternehmensgröße: {$body['org_size']} Mitarbeitende\n" : '';
+        $context = isset($body['industry']) ? "Branche: {$this->s($body['industry'], 100)}\n" : '';
+        $context .= isset($body['org_size']) ? "Unternehmensgröße: {$this->s($body['org_size'], 20)} Mitarbeitende\n" : '';
 
         $prompt = "Erstelle einen konkreten Umsetzungsvorschlag für die folgende Grundschutz++ Anforderung.\n\n" .
-            "Anforderungs-ID: {$body['control_id']}\n" .
-            "Titel: {$body['control_title']}\n" .
-            "Beschreibung: {$body['description']}\n" .
+            "Anforderungs-ID: {$this->s($body['control_id'], 100)}\n" .
+            "Titel: {$this->s($body['control_title'], 200)}\n" .
+            "Beschreibung: {$this->s($body['description'])}\n" .
             $context .
             "\nGib 3–5 konkrete, sofort umsetzbare Maßnahmen an. Berücksichtige typische KMU-Ressourcen (begrenzte IT-Abteilung, kein CISO).";
 
@@ -175,9 +183,9 @@ class AiController extends BaseController
         }
 
         $prompt = "Analysiere die Risiken, die entstehen, wenn die folgende Grundschutz++ Anforderung NICHT umgesetzt wird.\n\n" .
-            "Anforderungs-ID: {$body['control_id']}\n" .
-            "Titel: {$body['control_title']}\n" .
-            "Beschreibung: {$body['description']}\n\n" .
+            "Anforderungs-ID: {$this->s($body['control_id'], 100)}\n" .
+            "Titel: {$this->s($body['control_title'], 200)}\n" .
+            "Beschreibung: {$this->s($body['description'])}\n\n" .
             "Nenne 3–5 konkrete Schadenszenarien (z.B. Datenverlust, Betriebsunterbrechung, Bußgelder) mit realistischer Einschätzung für ein KMU.";
 
         $this->handleQuery('risk', $body, $prompt);
@@ -194,9 +202,9 @@ class AiController extends BaseController
         }
 
         $prompt = "Erstelle einen Audit-Befundvorschlag basierend auf dem folgenden Umsetzungsstand.\n\n" .
-            "Anforderungs-ID: {$body['control_id']}\n" .
-            "Umsetzungsstatus: {$body['implementation_status']}\n" .
-            "Umsetzungsbeschreibung: {$body['implementation_description']}\n\n" .
+            "Anforderungs-ID: {$this->s($body['control_id'], 100)}\n" .
+            "Umsetzungsstatus: {$this->s($body['implementation_status'], 50)}\n" .
+            "Umsetzungsbeschreibung: {$this->s($body['implementation_description'])}\n\n" .
             "Formuliere einen professionellen Prüfbefund (Befundtext + Empfehlung) in BSI-Grundschutz-Sprache.";
 
         $this->handleQuery('audit', $body, $prompt);
@@ -212,11 +220,11 @@ class AiController extends BaseController
             return;
         }
 
-        $deadline = isset($body['deadline']) ? "Deadline: {$body['deadline']}\n" : '';
+        $deadline = isset($body['deadline']) ? "Deadline: {$this->s($body['deadline'], 30)}\n" : '';
 
         $prompt = "Erstelle einen konkreten Sanierungsplan (Maßnahmenplan) für die folgende Feststellung.\n\n" .
-            "Titel: {$body['title']}\n" .
-            "Beschreibung: {$body['description']}\n" .
+            "Titel: {$this->s($body['title'], 200)}\n" .
+            "Beschreibung: {$this->s($body['description'])}\n" .
             $deadline .
             "\nGib einen strukturierten Plan mit 3–5 Meilensteinen an (Meilenstein, Verantwortlicher-Rolle, Frist-Empfehlung). Praxisnah für ein KMU.";
 
@@ -234,8 +242,8 @@ class AiController extends BaseController
         }
 
         $prompt = "Generiere Prüfungshandlungen (Audit Questions) für die folgende Grundschutz++ Anforderung auf den Reifegradstufen 0–5.\n\n" .
-            "Anforderungs-ID: {$body['control_id']}\n" .
-            "Titel: {$body['control_title']}\n\n" .
+            "Anforderungs-ID: {$this->s($body['control_id'], 100)}\n" .
+            "Titel: {$this->s($body['control_title'], 200)}\n\n" .
             "Strukturiere die Ausgabe als Liste: Stufe 0 (nicht vorhanden), Stufe 1 (initiiert), Stufe 2 (geplant), Stufe 3 (definiert), Stufe 4 (gesteuert), Stufe 5 (optimiert). Je Stufe 2–3 konkrete Prüffragen.";
 
         $this->handleQuery('maturity', $body, $prompt);
@@ -252,8 +260,8 @@ class AiController extends BaseController
         }
 
         $prompt = "Erkläre die Zuordnung der folgenden Grundschutz++ Anforderung zum klassischen BSI IT-Grundschutz (Edition 2023 / Kompendium).\n\n" .
-            "Anforderungs-ID: {$body['control_id']}\n" .
-            "Titel: {$body['control_title']}\n\n" .
+            "Anforderungs-ID: {$this->s($body['control_id'], 100)}\n" .
+            "Titel: {$this->s($body['control_title'], 200)}\n\n" .
             "Erkläre: Welchen Bausteinen aus dem BSI IT-Grundschutz-Kompendium 2023 entspricht diese Anforderung? Was sind die wesentlichen Unterschiede? Was bleibt gleich?";
 
         $this->handleQuery('map2023', $body, $prompt);

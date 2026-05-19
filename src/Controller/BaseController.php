@@ -13,6 +13,7 @@ class BaseController
     {
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, private');
         echo json_encode([
             'success' => true,
             'data'    => $data,
@@ -42,6 +43,7 @@ class BaseController
     {
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, private');
         $payload = [
             'success' => false,
             'error'   => $message,

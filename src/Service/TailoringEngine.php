@@ -31,11 +31,12 @@ class TailoringEngine
     public function loadControlsFromCatalog(
         int         $catalogId,
         string      $ismsType,
-        OscalParser $parser
+        OscalParser $parser,
+        int         $tenantId = 0
     ): array {
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare("SELECT oscal_json FROM catalogs WHERE id = ? LIMIT 1");
-        $stmt->execute([$catalogId]);
+        $stmt = $pdo->prepare("SELECT oscal_json FROM catalogs WHERE id = ? AND tenant_id = ? LIMIT 1");
+        $stmt->execute([$catalogId, $tenantId]);
         $row = $stmt->fetch();
 
         if ($row === false) {

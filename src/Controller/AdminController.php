@@ -270,9 +270,10 @@ class AdminController extends BaseController
 
         $settings = json_decode($row['settings_json'] ?? '{}', true) ?? [];
 
-        // Never send the SMTP password in clear text
-        if (isset($settings['smtp_pass'])) {
+        // Never send the SMTP password — mask it regardless of storage key
+        if (isset($settings['smtp_pass']) || isset($settings['smtp_pass_enc'])) {
             $settings['smtp_pass'] = '••••••••';
+            unset($settings['smtp_pass_enc']);
         }
 
         // Never expose the encrypted AI API key — return masked placeholder if set
@@ -319,8 +320,13 @@ class AdminController extends BaseController
             if (!array_key_exists($key, $body)) {
                 continue;
             }
-            // Don't overwrite real password with placeholder
-            if ($key === 'smtp_pass' && $body[$key] === '••••••••') {
+            if ($key === 'smtp_pass') {
+                // Don't overwrite with placeholder; encrypt real passwords
+                if ($body[$key] === '••••••••') {
+                    continue;
+                }
+                $existing['smtp_pass_enc'] = (new FieldEncryptor())->encrypt($body[$key]);
+                unset($existing['smtp_pass']); // remove any legacy plaintext entry
                 continue;
             }
             $existing[$key] = $body[$key];
@@ -361,6 +367,11 @@ class AdminController extends BaseController
         $row      = $stmt->fetch();
         $settings = json_decode($row['settings_json'] ?? '{}', true) ?? [];
 
+        // Decrypt SMTP password before handing to MailService
+        if (!empty($settings['smtp_pass_enc'])) {
+            $settings['smtp_pass'] = (new FieldEncryptor())->decrypt($settings['smtp_pass_enc']);
+        }
+
         try {
             MailService::send(
                 $settings,
@@ -369,7 +380,8 @@ class AdminController extends BaseController
                 "Diese Testmail wurde vom GS++ Manager gesendet.\n\nWenn Sie diese E-Mail erhalten, ist Ihre SMTP-Konfiguration korrekt.",
             );
         } catch (\RuntimeException $e) {
-            $this->error('SMTP-Test fehlgeschlagen: ' . $e->getMessage(), 502);
+            error_log('[SMTP test] ' . $e->getMessage());
+            $this->error('SMTP-Test fehlgeschlagen.', 502);
             return;
         }
 

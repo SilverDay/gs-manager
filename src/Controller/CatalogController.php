@@ -85,6 +85,10 @@ class CatalogController extends BaseController
                 $this->error('json ist erforderlich.', 422);
                 return;
             }
+            if (strlen($rawJson) > 20 * 1024 * 1024) {
+                $this->error('JSON-Katalog überschreitet die maximale Größe von 20 MB.', 413);
+                return;
+            }
         }
 
         try {

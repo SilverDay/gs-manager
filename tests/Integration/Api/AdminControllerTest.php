@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace GsppManager\Tests\Integration\Api;
 
 use GsppManager\Controller\AdminController;
+use GsppManager\Security\FieldEncryptor;
 use GsppManager\Security\PasswordHasher;
 use GsppManager\Tests\Integration\IntegrationTestCase;
 
@@ -279,8 +280,12 @@ class AdminControllerTest extends IntegrationTestCase
             'PUT',
         );
 
-        $row     = $this->db->query("SELECT settings_json FROM tenants WHERE id = 1")->fetch();
+        $row      = $this->db->query("SELECT settings_json FROM tenants WHERE id = 1")->fetch();
         $settings = json_decode($row['settings_json'], true);
-        $this->assertSame('real-password-123', $settings['smtp_pass']);
+        // Password is now stored encrypted; plaintext key must not exist
+        $this->assertArrayNotHasKey('smtp_pass', $settings);
+        $this->assertArrayHasKey('smtp_pass_enc', $settings);
+        $decrypted = (new FieldEncryptor())->decrypt($settings['smtp_pass_enc']);
+        $this->assertSame('real-password-123', $decrypted);
     }
 }

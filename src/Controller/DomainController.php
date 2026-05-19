@@ -86,7 +86,7 @@ class DomainController extends BaseController
 
         // Auto-load controls by ISMS type
         try {
-            $controls = $this->tailoring->loadControlsFromCatalog($catalogId, $ismsType, $this->parser);
+            $controls = $this->tailoring->loadControlsFromCatalog($catalogId, $ismsType, $this->parser, $this->tenantId());
             $this->repo->saveScopedControls($domainId, $controls, $catalogId);
         } catch (RuntimeException $e) {
             // Domain is created; log but don't fail — controls can be managed manually

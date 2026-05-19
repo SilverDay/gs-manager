@@ -171,7 +171,7 @@ class ProfileController extends BaseController
         $this->json([
             'sessions' => [
                 [
-                    'id'            => session_id(),
+                    'id'            => hash('sha256', session_id()),
                     'ip_address'    => $_SERVER['REMOTE_ADDR'] ?? '',
                     'user_agent'    => $_SERVER['HTTP_USER_AGENT'] ?? '',
                     'last_activity' => isset($_SESSION['last_activity'])

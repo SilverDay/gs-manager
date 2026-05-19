@@ -48,6 +48,17 @@ if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
     }
 }
 
+// Global exception handler — returns standard JSON envelope instead of blank 500
+set_exception_handler(static function (\Throwable $e): void {
+    error_log('[uncaught] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store, private');
+    }
+    echo json_encode(['success' => false, 'error' => 'Interner Serverfehler.'], JSON_UNESCAPED_UNICODE);
+});
+
 // Route the request
 $router = new Router();
 require_once __DIR__ . '/../src/Router/routes.php';

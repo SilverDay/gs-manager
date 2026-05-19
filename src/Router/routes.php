@@ -31,11 +31,25 @@ use GsppManager\Controller\TenantController;
 $router->registerMiddleware('auth',       [AuthMiddleware::class, 'handle']);
 $router->registerMiddleware('csrf',       [CsrfMiddleware::class, 'handle']);
 $router->registerMiddleware('rate_login', static function (): bool {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    if (!RateLimitMiddleware::check('login', $ip, 10, 60)) {
+    $ip  = $_SERVER['REMOTE_ADDR'] ?? '';
+    $max = (int) ($_ENV['RATE_LIMIT_LOGIN_MAX'] ?? 10);
+    $win = (int) ($_ENV['RATE_LIMIT_LOGIN_WINDOW'] ?? 60);
+    if (!RateLimitMiddleware::check('login', $ip, $max, $win)) {
         http_response_code(429);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['success' => false, 'error' => 'Zu viele Anmeldeversuche. Bitte warten Sie eine Minute.'], JSON_UNESCAPED_UNICODE);
+        return false;
+    }
+    return true;
+});
+$router->registerMiddleware('rate_reset', static function (): bool {
+    $ip  = $_SERVER['REMOTE_ADDR'] ?? '';
+    $max = (int) ($_ENV['RATE_LIMIT_RESET_MAX'] ?? 5);
+    $win = (int) ($_ENV['RATE_LIMIT_RESET_WINDOW'] ?? 900);
+    if (!RateLimitMiddleware::check('password_reset', $ip, $max, $win)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['success' => false, 'error' => 'Zu viele Anfragen. Bitte warten Sie 15 Minuten.'], JSON_UNESCAPED_UNICODE);
         return false;
     }
     return true;
@@ -62,11 +76,11 @@ $router->registerMiddleware('rate_ai', static function (): bool {
 
 // ─── Authentication ─────────────────────────────────────────────
 $router->post('/api/auth/login', AuthController::class, 'login', ['rate_login']);
-$router->post('/api/auth/logout', AuthController::class, 'logout', ['auth']);
+$router->post('/api/auth/logout', AuthController::class, 'logout', ['auth', 'csrf']);
 $router->get('/api/auth/me', AuthController::class, 'me', ['auth']);
 $router->get('/api/auth/csrf-token', AuthController::class, 'csrfToken');
-$router->post('/api/auth/password-reset/request', AuthController::class, 'passwordResetRequest');
-$router->post('/api/auth/password-reset/confirm', AuthController::class, 'passwordResetConfirm');
+$router->post('/api/auth/password-reset/request', AuthController::class, 'passwordResetRequest', ['rate_reset']);
+$router->post('/api/auth/password-reset/confirm', AuthController::class, 'passwordResetConfirm', ['rate_reset']);
 
 // ─── User Profile (self-service) ────────────────────────────────
 $router->get('/api/profile',                      ProfileController::class, 'show',          ['auth']);

@@ -28,7 +28,7 @@ class TenantController extends BaseController
         if (!$this->requireSuperAdmin()) return;
 
         $pdo  = Database::getConnection();
-        $stmt = $pdo->query("
+        $stmt = $pdo->prepare("
             SELECT
                 t.id, t.name, t.slug, t.is_active, t.created_at,
                 COUNT(DISTINCT u.id)  AS user_count,
@@ -39,6 +39,7 @@ class TenantController extends BaseController
             GROUP BY t.id
             ORDER BY t.created_at DESC
         ");
+        $stmt->execute([]);
         $rows = $stmt->fetchAll();
 
         $this->json(['tenants' => array_map(fn($r) => [
